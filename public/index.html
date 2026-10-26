@@ -39,6 +39,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .brand { font-family: var(--display); font-weight: 700; font-size: 1.25rem; letter-spacing: .01em; margin-right: auto; }
 .brand small { font-family: var(--mono); font-weight: 400; font-size: .7rem; color: var(--muted); margin-left: 8px; letter-spacing: .06em; text-transform: uppercase; }
 nav { display: flex; gap: 4px; }
+.theme { padding: 5px 12px; font-size: .88rem; }
+.fill-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .demo { background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: .9rem; }
 .demo .top-in { padding-block: 8px; }
 nav a { text-decoration: none; color: var(--muted); font-weight: 600; padding: 6px 12px; border-radius: 6px; }
@@ -191,6 +193,7 @@ dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
       <a href="#history" data-view="history">History</a>
       <a href="#staff" data-view="staff">Staff</a>
     </nav>
+    <button class="btn theme" id="themeBtn" type="button"></button>
   </div>
 </header>
 <div class="demo" id="demoBar" hidden><div class="top-in">Demo site. Entries are saved only in this browser and are not official QA records.</div></div>
@@ -261,7 +264,7 @@ async function load() {
 
 function render() {
   document.querySelectorAll('nav a').forEach(a => a.dataset.view === S.view ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
-  document.body.classList.toggle('wide', S.fill?.layout === 'sheet');
+  document.body.classList.toggle('wide', useSheet(S.fill));
   if (S.offline) { app.innerHTML = `<div class="notice"><h2>Can't reach the QA server</h2><p>Check that the QA forms server is running on the office PC and that this device is on the plant network, then reload the page.</p></div>`; return; }
   if (!S.ready) return;
   if (S.fill) return renderFill();
@@ -310,6 +313,12 @@ function control(f, name, inTable) {
 // Tables with many columns render each row as a card so they fit a tablet without sideways scrolling.
 const isCards = f => f.columns.length > 6;
 
+// Forms with a paper layout can be filled as the sheet or as cards; the choice is remembered on this device.
+const useSheet = f => f?.layout === 'sheet' && ls.get('qa-layout') !== 'cards';
+const fillTop = f => `<div class="fill-top"><button class="btn link" id="back">← All forms</button>${f.layout === 'sheet' ? `
+  <span class="seg" role="radiogroup" aria-label="Layout">${[['sheet', 'Paper sheet'], ['cards', 'Cards']].map(([v, t]) =>
+    `<label><input type="radio" name="_layout" value="${v}"${(useSheet(f) ? 'sheet' : 'cards') === v ? ' checked' : ''}><span>${t}</span></label>`).join('')}</span>` : ''}</div>`;
+
 // Paper-sheet layout: one ruled grid like the printed log, sized for an iPad in landscape.
 function sheetCell(c, name) {
   const al = ` aria-label="${esc(c.label)}"`;
@@ -323,7 +332,7 @@ function sheetCell(c, name) {
 }
 
 function tableRow(f, k) {
-  if (S.fill?.layout === 'sheet') return `<tr data-row="${k}">${f.columns.map(c => `<td>${sheetCell(c, `${f.id}__${k}__${c.id}`)}</td>`).join('')}</tr>`;
+  if (useSheet(S.fill)) return `<tr data-row="${k}">${f.columns.map(c => `<td>${sheetCell(c, `${f.id}__${k}__${c.id}`)}</td>`).join('')}</tr>`;
   if (isCards(f)) return `<div class="rowcard" data-row="${k}"><div class="rowcard-h"><span class="rownum"></span><button type="button" class="btn link" data-delrow>Remove</button></div>
     <div class="rowgrid">${f.columns.map(c => `<div class="field"><span class="lbl">${esc(c.label)}</span>${control(c, `${f.id}__${k}__${c.id}`, true)}</div>`).join('')}</div></div>`;
   return `<tr data-row="${k}"><td class="rownum"></td>${f.columns.map(c => `<td>${control(c, `${f.id}__${k}__${c.id}`, true)}</td>`).join('')}</tr>`;
@@ -333,7 +342,7 @@ function fieldHtml(f) {
   const lbl = `<span class="lbl">${esc(f.label)}${f.required ? ' <span class="req" aria-hidden="true">*</span>' : ''}</span>`;
   const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : '';
   if (f.type === 'table') {
-    const rows = Array.from({ length: f.rows || 3 }, () => tableRow(f, S.rowSeq++)).join('');
+    const rows = Array.from({ length: isCards(f) ? 2 : f.rows || 3 }, () => tableRow(f, S.rowSeq++)).join('');
     const add = f.addRows === false ? '' : `<div><button type="button" class="btn link" data-addrow="${esc(f.id)}">+ Add row</button></div>`;
     if (isCards(f)) return `<div class="field">${lbl}${hint}<div class="rowcards" data-table="${esc(f.id)}">${rows}</div>${add}</div>`;
     return `<div class="field">${lbl}${hint}<div class="tbl-wrap"><table><thead><tr><th>#</th>${f.columns.map(c => `<th>${esc(c.label)}${c.unit ? ` (${esc(c.unit)})` : ''}</th>`).join('')}</tr></thead>
@@ -358,7 +367,7 @@ function renderPaper(f) {
   const others = allFields(f).filter(x => x !== grid);
   const total = grid.columns.reduce((s, c) => s + (c.w || 1), 0);
   const rows = Array.from({ length: grid.rows || 10 }, () => tableRow(grid, S.rowSeq++)).join('');
-  app.innerHTML = `<div><button class="btn link" id="back">← All forms</button></div>
+  app.innerHTML = `${fillTop(f)}
   <form class="paper" id="sheet" novalidate>
     <div class="paper-head">
       <h1>${esc(f.title || f.name)}</h1>
@@ -389,8 +398,8 @@ function openFill(id) {
 
 function renderFill() {
   const f = S.fill;
-  if (f.layout === 'sheet') return renderPaper(f);
-  app.innerHTML = `<div><button class="btn link" id="back">← All forms</button></div>
+  if (useSheet(f)) return renderPaper(f);
+  app.innerHTML = `${fillTop(f)}
   <form class="sheet" id="sheet" novalidate>
     <div class="sheet-head">
       <div class="eyebrow">${[f.code, f.category, f.frequency].filter(Boolean).map(esc).join(' · ')}</div>
@@ -417,6 +426,11 @@ function bindFill(f) {
   stamp(); clearInterval(S.clock); S.clock = setInterval(stamp, 30000);
   numberRows();
   document.getElementById('back').onclick = () => go('forms');
+  app.querySelectorAll('[name="_layout"]').forEach(r => r.onchange = () => {
+    const sheet = document.getElementById('sheet'), data = collect(sheet, f);
+    ls.set('qa-layout', r.value); render();
+    restore(document.getElementById('sheet'), f, data);
+  });
   app.querySelectorAll('[data-addrow]').forEach(b => b.onclick = () => {
     const fld = allFields(f).find(x => x.id === b.dataset.addrow);
     app.querySelector(`[data-table="${CSS.escape(fld.id)}"]`).insertAdjacentHTML('beforeend', tableRow(fld, S.rowSeq++));
@@ -441,6 +455,35 @@ function readValue(f, fd, name) {
   return f.type === 'number' ? Number(v) : String(v).trim();
 }
 
+function collect(form, f) {
+  const fd = new FormData(form), values = {};
+  for (const fld of allFields(f)) {
+    if (fld.type === 'table') {
+      values[fld.id] = [...form.querySelectorAll(`[data-table="${CSS.escape(fld.id)}"] [data-row]`)].map(tr => {
+        const row = {}; fld.columns.forEach(c => row[c.id] = readValue(c, fd, `${fld.id}__${tr.dataset.row}__${c.id}`)); return row;
+      }).filter(row => Object.values(row).some(v => v !== null && v !== false));
+    } else values[fld.id] = readValue(fld, fd, fld.id);
+  }
+  return { staffName: String(fd.get('_staff') || '').trim(), values, notes: String(fd.get('_notes') || '').trim() };
+}
+
+// Put collected entries back after switching layouts, so nothing typed is lost.
+function restore(form, f, { staffName, values, notes }) {
+  const put = (name, v) => { const el = form.elements[name]; if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!v; else el.value = v ?? ''; };
+  put('_staff', staffName); put('_notes', notes);
+  for (const fld of allFields(f)) {
+    if (fld.type !== 'table') { put(fld.id, values[fld.id]); continue; }
+    const tb = form.querySelector(`[data-table="${CSS.escape(fld.id)}"]`);
+    (values[fld.id] || []).forEach((row, i) => {
+      if (!tb.querySelectorAll('[data-row]')[i]) tb.insertAdjacentHTML('beforeend', tableRow(fld, S.rowSeq++));
+      const k = tb.querySelectorAll('[data-row]')[i].dataset.row;
+      fld.columns.forEach(c => put(`${fld.id}__${k}__${c.id}`, row[c.id]));
+    });
+  }
+  numberRows();
+}
+
 async function submitFill(e) {
   e.preventDefault();
   const form = e.target, err = document.getElementById('err');
@@ -449,18 +492,10 @@ async function submitFill(e) {
     err.textContent = 'Fill in every field marked * before submitting.';
     bad?.focus(); return;
   }
-  const f = S.fill, fd = new FormData(form), values = {};
-  for (const fld of allFields(f)) {
-    if (fld.type === 'table') {
-      values[fld.id] = [...form.querySelectorAll(`[data-table="${CSS.escape(fld.id)}"] [data-row]`)].map(tr => {
-        const row = {}; fld.columns.forEach(c => row[c.id] = readValue(c, fd, `${fld.id}__${tr.dataset.row}__${c.id}`)); return row;
-      }).filter(row => Object.values(row).some(v => v !== null && v !== false));
-    } else values[fld.id] = readValue(fld, fd, fld.id);
-  }
-  const staffName = String(fd.get('_staff')).trim();
+  const f = S.fill, { staffName, values, notes } = collect(form, f);
   const btn = document.getElementById('submitBtn'); btn.disabled = true; err.textContent = '';
   try {
-    await apiCall('POST', '/api/submissions', { formId: f.id, staffName, values, notes: String(fd.get('_notes') || '').trim() });
+    await apiCall('POST', '/api/submissions', { formId: f.id, staffName, values, notes });
     ls.set('qa-staff', staffName);
     clearInterval(S.clock);
     toast(`${f.name} submitted`);
@@ -573,6 +608,10 @@ document.querySelectorAll('nav a').forEach(a => a.addEventListener('click', e =>
 addEventListener('hashchange', () => { const v = location.hash.slice(1); if (['forms', 'history', 'staff'].includes(v) && v !== S.view) go(v); });
 S.view = ['forms', 'history', 'staff'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'forms';
 document.getElementById('demoBar').hidden = !DEMO;
+// Light by default; the choice is remembered on this device.
+const applyTheme = t => { document.documentElement.dataset.theme = t; document.getElementById('themeBtn').textContent = t === 'dark' ? 'Light mode' : 'Dark mode'; };
+applyTheme(ls.get('qa-theme') || 'light');
+document.getElementById('themeBtn').onclick = () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; ls.set('qa-theme', t); applyTheme(t); };
 render();
 load();
 </script>
