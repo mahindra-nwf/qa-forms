@@ -94,8 +94,8 @@ textarea { resize: vertical; }
 .seg span { display: inline-block; border: 1px solid var(--line); border-radius: 6px; padding: 6px 14px; font-weight: 600; cursor: pointer; background: var(--bg); }
 .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 .seg input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.seg input:is([value="Pass"], [value="Accepted"]):checked + span { background: var(--good); border-color: var(--good); color: var(--surface); }
-.seg input:is([value="Fail"], [value="Rejected"]):checked + span { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.seg input:is([value="Pass"], [value="Accepted"], [value="Accept"]):checked + span { background: var(--good); border-color: var(--good); color: var(--surface); }
+.seg input:is([value="Fail"], [value="Rejected"], [value="Reject"]):checked + span { background: var(--bad); border-color: var(--bad); color: var(--surface); }
 .check { display: inline-flex; gap: 8px; align-items: center; }
 .check input { width: 20px; height: 20px; accent-color: var(--accent); }
 .tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
@@ -168,6 +168,27 @@ table.grid { table-layout: fixed; width: 100%; min-width: 1060px; border-collaps
 .line.wide { flex-basis: 100%; }
 .doc-info { margin: 0; text-align: center; font-size: .72rem; color: var(--muted); }
 .paper .sheet-foot { margin: 0 -20px; }
+
+/* Checklist grid */
+table.matrix { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: .92rem; background: var(--paper); }
+.matrix th, .matrix td { border: 1px solid var(--rule); padding: 6px 8px; vertical-align: middle; }
+.matrix thead th { background: var(--cellhead); color: var(--ink); font: 700 .8rem/1.2 var(--body); text-align: center; white-space: normal; letter-spacing: 0; }
+.matrix thead th:first-child { text-align: left; }
+.matrix .m-item { width: 36%; } .matrix .m-area { width: 8%; } .matrix .m-note { width: 32%; }
+.matrix .m-q b { font-family: var(--mono); font-weight: 500; color: var(--muted); }
+.matrix td.m-na { background: var(--rule); }
+.matrix td.m-cell { padding: 0; }
+.mark { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 100%; min-height: 56px; font-size: 1.6rem; font-weight: 700; cursor: pointer; }
+.mark:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.mark.ok { color: var(--good); } .mark.ok::after { content: "✓"; }
+.mark.issue { color: var(--bad); background: var(--bad-soft); } .mark.issue::after { content: "✱"; }
+.matrix td.m-show { text-align: center; font-size: 1.3rem; font-weight: 700; }
+.m-ok { color: var(--good); } .m-bad { color: var(--bad); }
+.matrix textarea { border: 0; border-radius: 0; background: transparent; padding: 4px; min-height: 48px; resize: vertical; }
+.m-read { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-weight: 600; font-size: .85rem; }
+.m-read input { width: 90px; min-width: 0; padding: 4px 6px; }
+.matrix tr.m-init td { background: var(--cellhead); font-weight: 700; text-align: right; }
+.matrix tr.m-init input { text-align: center; font-weight: 700; padding: 6px 4px; background: var(--paper); }
 
 /* History */
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
@@ -316,7 +337,7 @@ function control(f, name, inTable) {
     case 'passfail': return `<span class="seg" role="radiogroup" aria-label="${esc(f.label)}">${(f.options || ['Pass', 'Fail', 'N/A']).map((o, i) =>
       `<label><input type="radio" name="${esc(name)}" value="${esc(o)}"${req && i === 0 ? ' required' : ''}><span>${esc(o)}</span></label>`).join('')}</span>`;
     case 'checkbox': return `<label class="check"><input type="checkbox" name="${esc(name)}"${inTable ? al : ''}><span>${esc(f.checkLabel || 'Done')}</span></label>`;
-    case 'date': case 'time': return `<input type="${f.type}" name="${esc(name)}"${req}${al}>`;
+    case 'date': case 'time': return `<input type="${f.type}" name="${esc(name)}"${req}${al}${f.default === 'today' ? ` value="${new Date().toLocaleDateString('en-CA')}"` : ''}>`;
     default: return `<input type="text" name="${esc(name)}"${req}${al}>`;
   }
 }
@@ -349,7 +370,47 @@ function tableRow(f, k) {
   return `<tr data-row="${k}"><td class="rownum"></td>${f.columns.map(c => `<td>${control(c, `${f.id}__${k}__${c.id}`, true)}</td>`).join('')}</tr>`;
 }
 
+// Checklist grid: inspection items down the side, areas across the top, like the paper SSOP sheets.
+// Tapping a box cycles blank -> ✓ OK -> ✱ needs attention -> blank. Areas an item doesn't cover are shaded out.
+const areasOf = (f, it) => it.areas || f.columns.map(c => c.id);
+const MARK = { '': 'not checked', OK: 'OK', Issue: 'needs attention' };
+
+function setMark(btn, v) {
+  btn.nextElementSibling.value = v;
+  btn.className = 'mark' + (v ? ' ' + v.toLowerCase() : '');
+  btn.setAttribute('aria-label', `${btn.dataset.label}: ${MARK[v]}`);
+}
+
+function matrixHtml(f) {
+  const cols = f.columns;
+  return `<div class="field">${f.hint ? `<span class="hint">${esc(f.hint)}</span>` : ''}<div class="tbl-wrap"><table class="matrix">
+    <colgroup><col class="m-item">${cols.map(() => '<col class="m-area">').join('')}<col class="m-note"></colgroup>
+    <thead><tr><th>${esc(f.label)}</th>${cols.map(c => `<th>${esc(c.label)}</th>`).join('')}<th>Comment / corrective action</th></tr></thead>
+    <tbody>${f.items.map(it => `<tr data-item="${esc(f.label)} item ${esc(it.id)}">
+      <td class="m-q"><b>${esc(it.id)}.</b> ${esc(it.label)}${it.reading ? `<label class="m-read">${esc(it.reading.label)}
+        <input type="number" step="any" name="${esc(`${f.id}__${it.id}__reading`)}">${esc(it.reading.unit || '')}</label>` : ''}</td>
+      ${cols.map(c => areasOf(f, it).includes(c.id)
+        ? `<td class="m-cell"><button type="button" class="mark" data-label="${esc(it.id)}. ${esc(c.label)}" aria-label="${esc(it.id)}. ${esc(c.label)}: not checked"></button><input type="hidden" name="${esc(`${f.id}__${it.id}__${c.id}`)}" value=""></td>`
+        : '<td class="m-na" title="Does not apply"></td>').join('')}
+      <td><textarea rows="2" name="${esc(`${f.id}__${it.id}__note`)}" aria-label="Comment for ${esc(it.id)}"></textarea></td></tr>`).join('')}
+    ${f.initials ? `<tr class="m-init"><td>${esc(f.initials)}:</td>${cols.map(c => `<td><input type="text" name="${esc(`${f.id}__init__${c.id}`)}" aria-label="${esc(f.initials)}, ${esc(c.label)}"></td>`).join('')}<td class="m-na"></td></tr>` : ''}
+    </tbody></table></div></div>`;
+}
+
+function matrixView(f, v) {
+  const items = v?.items || {}, init = v?.initials || {}, sym = { OK: '<span class="m-ok">✓</span>', Issue: '<span class="m-bad">✱</span>' };
+  return `<div class="field"><div class="tbl-wrap"><table class="matrix">
+    <colgroup><col class="m-item">${f.columns.map(() => '<col class="m-area">').join('')}<col class="m-note"></colgroup>
+    <thead><tr><th>${esc(f.label)}</th>${f.columns.map(c => `<th>${esc(c.label)}</th>`).join('')}<th>Comment / corrective action</th></tr></thead>
+    <tbody>${f.items.map(it => { const r = items[it.id] || {}; return `<tr><td class="m-q"><b>${esc(it.id)}.</b> ${esc(it.label)}${it.reading ? `<div class="m-read">${esc(it.reading.label)} ${r.reading ?? '—'} ${esc(it.reading.unit || '')}</div>` : ''}</td>
+      ${f.columns.map(c => areasOf(f, it).includes(c.id) ? `<td class="m-show">${sym[r[c.id]] || ''}</td>` : '<td class="m-na"></td>').join('')}
+      <td>${esc(r.note || '')}</td></tr>`; }).join('')}
+    ${f.initials ? `<tr class="m-init"><td>${esc(f.initials)}:</td>${f.columns.map(c => `<td class="m-show">${esc(init[c.id] || '')}</td>`).join('')}<td class="m-na"></td></tr>` : ''}
+    </tbody></table></div></div>`;
+}
+
 function fieldHtml(f) {
+  if (f.type === 'matrix') return matrixHtml(f);
   const lbl = `<span class="lbl">${esc(f.label)}${f.required ? ' <span class="req" aria-hidden="true">*</span>' : ''}</span>`;
   const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : '';
   if (f.type === 'table') {
@@ -449,6 +510,8 @@ function bindFill(f) {
   });
   app.querySelector('#sheet').addEventListener('click', e => {
     if (e.target.matches('[data-delrow]')) { e.target.closest('[data-row]').remove(); numberRows(); return; }
+    const m = e.target.closest('.mark');
+    if (m) { setMark(m, { '': 'OK', OK: 'Issue', Issue: '' }[m.nextElementSibling.value]); return; }
     // Tapping a selected A/R box again clears it, like erasing a tick on paper.
     const r = e.target.closest('.ar input');
     if (!r) return;
@@ -473,6 +536,17 @@ function collect(form, f) {
       values[fld.id] = [...form.querySelectorAll(`[data-table="${CSS.escape(fld.id)}"] [data-row]`)].map(tr => {
         const row = {}; fld.columns.forEach(c => row[c.id] = readValue(c, fd, `${fld.id}__${tr.dataset.row}__${c.id}`)); return row;
       }).filter(row => Object.values(row).some(v => v !== null && v !== false));
+    } else if (fld.type === 'matrix') {
+      const items = {}, initials = {}, text = name => String(fd.get(name) || '').trim() || null;
+      fld.items.forEach(it => {
+        const row = {};
+        areasOf(fld, it).forEach(a => row[a] = text(`${fld.id}__${it.id}__${a}`));
+        row.note = text(`${fld.id}__${it.id}__note`);
+        if (it.reading) row.reading = readValue({ type: 'number' }, fd, `${fld.id}__${it.id}__reading`);
+        items[it.id] = row;
+      });
+      if (fld.initials) fld.columns.forEach(c => initials[c.id] = text(`${fld.id}__init__${c.id}`));
+      values[fld.id] = { items, initials };
     } else values[fld.id] = readValue(fld, fd, fld.id);
   }
   return { staffName: String(fd.get('_staff') || '').trim(), values, notes: String(fd.get('_notes') || '').trim() };
@@ -503,6 +577,11 @@ async function submitFill(e) {
     err.textContent = 'Fill in every field marked * before submitting.';
     bad?.focus(); return;
   }
+  const noNote = [...form.querySelectorAll('tr[data-item]')].find(tr => tr.querySelector('.mark.issue') && !tr.querySelector('textarea').value.trim());
+  if (noNote) {
+    err.textContent = `${noNote.dataset.item} is marked ✱. Add a comment or corrective action before submitting.`;
+    noNote.querySelector('textarea').focus(); return;
+  }
   const f = S.fill, { staffName, values, notes } = collect(form, f);
   const btn = document.getElementById('submitBtn'); btn.disabled = true; err.textContent = '';
   try {
@@ -518,11 +597,9 @@ async function submitFill(e) {
 }
 
 /* ---------- History ---------- */
-function hasFail(s) {
-  const vals = Object.values(s.values || {}).flatMap(v => Array.isArray(v) ? v.flatMap(Object.values) : [v]);
-  return vals.some(v => BAD.includes(v));
-}
-const BAD = ['Fail', 'Rejected'], GOOD = ['Pass', 'Accepted'];
+const leaves = v => v && typeof v === 'object' ? Object.values(v).flatMap(leaves) : [v];
+const hasFail = s => leaves(s.values).some(v => BAD.includes(v));
+const BAD = ['Fail', 'Rejected', 'Reject', 'Issue'], GOOD = ['Pass', 'Accepted', 'Accept'];
 
 function filtered() {
   const { form, who, from, to, q } = S.filter, ql = q.toLowerCase();
@@ -550,7 +627,7 @@ function renderHistory() {
       ? `<div class="notice"><h2>No submissions yet</h2><p>Every form your team submits shows up here, newest first, with who filled it and when.</p></div>`
       : !rows.length ? `<div class="notice"><h2>No matches</h2><p>No submitted forms match these filters. Clear a filter to see more.</p></div>`
       : `<p class="muted" style="margin:0 0 8px">${rows.length} of ${S.subs.length} record${S.subs.length === 1 ? '' : 's'}</p><div class="subs">` + rows.map(s => `<button class="sub" data-sub="${esc(s.id)}">
-          <span>${s.formCode ? `<span class="mono muted">${esc(s.formCode)}</span> · ` : ''}<strong>${esc(s.formName)}</strong>${hasFail(s) ? '<span class="pill bad">Fail or reject</span>' : ''}</span>
+          <span>${s.formCode ? `<span class="mono muted">${esc(s.formCode)}</span> · ` : ''}<strong>${esc(s.formName)}</strong>${hasFail(s) ? '<span class="pill bad">Needs attention</span>' : ''}</span>
           <span class="when">${esc(fmtWhen(s.submittedAt))}</span>
           <span class="muted">${esc(s.staffName)}</span></button>`).join('') + '</div>';
     app.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { S.detail = b.dataset.sub; render(); window.scrollTo(0, 0); });
@@ -575,6 +652,7 @@ function renderDetail() {
   const sections = def?.sections || [{ title: 'Values', fields: Object.keys(s.values || {}).map(k => ({ id: k, label: k })) }];
   const body = sections.map(sec => `<fieldset><legend>${esc(sec.title || '')}</legend><dl class="vals">` + (sec.fields || []).map(f => {
     const v = s.values?.[f.id];
+    if (f.type === 'matrix') return `</dl>${matrixView(f, v)}<dl class="vals">`;
     if (f.type === 'table' || Array.isArray(v)) {
       const cols = f.columns || Object.keys(v?.[0] || {}).map(k => ({ id: k, label: k }));
       return `</dl><div class="field"><span class="lbl">${esc(f.label)}</span>${v?.length ? `<div class="tbl-wrap"><table><thead><tr><th>#</th>${cols.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>` +

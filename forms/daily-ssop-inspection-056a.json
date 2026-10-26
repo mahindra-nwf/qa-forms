@@ -1,0 +1,109 @@
+{
+  "name": "Daily SSOP Inspection",
+  "code": "Log 056-A",
+  "category": "Sanitation",
+  "frequency": "Daily",
+  "description": "Pre-op, operational and post-op sanitation checks by area. Mark ✱ wherever something needs attention and write the comment or corrective action on that line.",
+  "sections": [
+    {
+      "title": "Inspection",
+      "fields": [
+        { "id": "date", "label": "Date", "type": "date", "required": true, "default": "today" }
+      ]
+    },
+    {
+      "title": "1. Pre-Op",
+      "fields": [
+        {
+          "id": "preop",
+          "label": "1. Pre-Op",
+          "type": "matrix",
+          "hint": "Tap a box once for ✓, twice for ✱ (needs attention), three times to clear. Shaded boxes don't apply to that area.",
+          "initials": "Pre-op inspection completed by (initials)",
+          "columns": [
+            { "id": "rice", "label": "Rice" },
+            { "id": "prep", "label": "Prep & Production" },
+            { "id": "pack", "label": "Packaging" },
+            { "id": "wh", "label": "Warehouse, Storage, Other" }
+          ],
+          "items": [
+            { "id": "a", "label": "Inspect equipment, FCS, and utensils for cleanliness.", "areas": ["prep", "pack"] },
+            { "id": "b", "label": "Inspect utensils and containers for cracks or chips.", "areas": ["prep", "pack"] },
+            { "id": "c", "label": "Inspect floors, walls, doors, and ceilings for cleanliness.", "areas": ["prep", "pack", "wh"] },
+            { "id": "d", "label": "ATP swabs performed?", "areas": ["rice", "prep", "pack"] },
+            { "id": "e", "label": "Cold storage: temperature within acceptable range? Check for icing/condensation. No items stored underneath cooler fans or hoses.", "areas": ["prep", "wh"] },
+            { "id": "f", "label": "Test food-contact sanitizer strength. QUAT: 200-400 ppm (strip). PAA: 90-190 ppm (Kemio).", "areas": ["wh"], "reading": { "label": "Reading", "unit": "ppm" } },
+            { "id": "g", "label": "Sink is working. Soap, paper towels, hand sanitizer available. Trash cans empty with new liners.", "areas": ["prep", "pack", "wh"] },
+            { "id": "h", "label": "Floor mats and door ways to high-risk areas contain floor powder sanitizer. Foot foamer system on and working.", "areas": ["prep", "pack", "wh"] },
+            { "id": "i", "label": "Verify accuracy of monitoring equipment/devices (metal detector, X-ray, pH meter, scales).", "areas": ["rice", "prep", "pack"] },
+            { "id": "j", "label": "Are clean and used smock racks thoroughly covered with a plastic lining to prevent contamination?", "areas": ["wh"] },
+            { "id": "k", "label": "Start up equipment and inspect for damage. Report any damage to maintenance or Management.", "areas": ["prep", "pack"] },
+            { "id": "l", "label": "Ingredients, WIP, packaging materials, utensils, tools, and finished products are properly labeled and/or stored. Ingredients and WIP are enclosed/covered when not in use in warehouse." }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "2. Operational",
+      "fields": [
+        {
+          "id": "operational",
+          "label": "2. Operational",
+          "type": "matrix",
+          "initials": "Operational inspection completed by (initials)",
+          "columns": [
+            { "id": "rice", "label": "Rice" },
+            { "id": "prep", "label": "Prep & Production" },
+            { "id": "pack", "label": "Packaging" },
+            { "id": "wh", "label": "Warehouse, Storage, Other" }
+          ],
+          "items": [
+            { "id": "a", "label": "Handwashing: employees washing hands before entering work area. Sink is working. Soap, paper towels, hand sanitizer full." },
+            { "id": "b", "label": "GMP: PPE being worn and changed properly. No jewelry being worn." },
+            { "id": "c", "label": "Check toilet facilities. Area cleaned. Sink is working. Soap, paper towels, toilet paper available.", "areas": ["wh"] },
+            { "id": "d", "label": "Chemicals are properly labeled. Utensils in processing area are stored in sanitizer when not in use.", "areas": ["rice", "prep", "pack"] },
+            { "id": "e", "label": "Ingredients, WIP, packaging materials, utensils, tools, and finished products are properly labelled, stored, and/or used within time constraints. Ingredients and WIP are enclosed/covered when not in use in warehouse." },
+            { "id": "f", "label": "Dispose trash and unused materials from area." },
+            { "id": "g", "label": "Cold storage: temperature within acceptable range? Check for icing/condensation. No items stored underneath cooler fans or hoses.", "areas": ["prep", "wh"] },
+            { "id": "h", "label": "Doors are closed when not in use. Check for any sign of pests." },
+            { "id": "i", "label": "Inspect utensils and containers for cracks or chips. Inspect bags of product being used. Check for seepage, tears, rips, improper opening of bags by employees, etc.", "areas": ["rice", "prep", "pack"] },
+            { "id": "k", "label": "Inspect all equipment for damage during operation. Report any damage to maintenance or management.", "areas": ["rice", "prep", "pack"] }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "3. Post-Op",
+      "fields": [
+        {
+          "id": "postop",
+          "label": "3. Post-Op",
+          "type": "matrix",
+          "initials": "Post-op inspection completed by (initials)",
+          "columns": [
+            { "id": "rice", "label": "Rice" },
+            { "id": "prep", "label": "Prep & Production" },
+            { "id": "pack", "label": "Packaging" },
+            { "id": "wh", "label": "Warehouse, Storage, Other" }
+          ],
+          "items": [
+            { "id": "a", "label": "Ingredients, WIP, packaging, utensils, tools, and finished products are properly labelled, stored, and/or used within time constraints. Ingredients and WIP are enclosed/covered when not in use in warehouse.", "areas": ["rice", "prep", "pack"] },
+            { "id": "b", "label": "Shutdown all equipment. Equipment disassembled, cleaned, and sanitized.", "areas": ["rice", "prep", "pack"] },
+            { "id": "c", "label": "Inspect equipment, FCS, and utensils for cleanliness before sanitizing." },
+            { "id": "d", "label": "Inspect floors, walls, doors, and ceilings for cleanliness before sanitizing. Squeegee all water from the floor." },
+            { "id": "e", "label": "Doors are closed. Check for any sign of pests." },
+            { "id": "f", "label": "Dispose trash in the proper receptacle. Trash cans empty and clean. Store squeegees in sanitizer." }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Record review",
+      "fields": [
+        { "id": "reviewResult", "label": "Document is completed?", "type": "passfail", "options": ["Accept", "Reject"] },
+        { "id": "reviewInitials", "label": "Reviewer initials", "type": "text" },
+        { "id": "reviewDate", "label": "Review date", "type": "date" }
+      ]
+    }
+  ]
+}
