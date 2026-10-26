@@ -22,9 +22,9 @@
           "type": "table",
           "rows": 12,
           "columns": [
-            { "id": "date", "label": "Date", "type": "date", "w": 9.5 },
-            { "id": "vendor", "label": "Vendor", "type": "text", "w": 12 },
-            { "id": "item", "label": "Item", "type": "text", "w": 13 },
+            { "id": "date", "label": "Date", "type": "date", "span": 2, "w": 9.5 },
+            { "id": "vendor", "label": "Vendor", "type": "text", "span": 2, "w": 12 },
+            { "id": "item", "label": "Item", "type": "text", "span": 2, "w": 13 },
             { "id": "po", "label": "PO# or BOL#", "type": "text", "w": 8.5 },
             { "id": "lot", "label": "Lot code", "type": "text", "w": 7.5 },
             { "id": "exp", "label": "Exp. date", "type": "text", "w": 6.5 },

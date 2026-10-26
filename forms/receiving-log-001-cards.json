@@ -15,9 +15,9 @@
           "rows": 2,
           "hint": "One row per item. Leave temperature, lot, expiry or seal blank when it is N/A. Temperature limits: refrigerated anaerobic product surface below 38°F, all other refrigerated below 40°F, frozen below 10°F, dry has no limit.",
           "columns": [
-            { "id": "date", "label": "Date", "type": "date" },
-            { "id": "vendor", "label": "Vendor", "type": "text" },
-            { "id": "item", "label": "Item", "type": "text" },
+            { "id": "date", "label": "Date", "type": "date", "span": 2 },
+            { "id": "vendor", "label": "Vendor", "type": "text", "span": 2 },
+            { "id": "item", "label": "Item", "type": "text", "span": 2 },
             { "id": "po", "label": "PO# or BOL#", "type": "text" },
             { "id": "lot", "label": "Lot code", "type": "text" },
             { "id": "exp", "label": "Exp. date", "type": "text" },

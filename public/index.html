@@ -105,12 +105,23 @@ th { font-size: .78rem; font-family: var(--mono); font-weight: 500; letter-spaci
 td input:not([type=checkbox], [type=radio]), td select { min-width: 110px; }
 td input[type=number] { min-width: 80px; }
 td.rownum { font-family: var(--mono); color: var(--muted); width: 1%; }
-.rowcards { display: grid; gap: 12px; }
-.rowcard { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px 14px; background: var(--bg); }
-.rowcard-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-family: var(--mono); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.rowcards { display: grid; gap: 10px; }
+.rowcard { border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px 12px; background: var(--bg); }
+.rowcard-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px; font-family: var(--mono); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .rowcard-h .btn.link { text-transform: none; letter-spacing: 0; font-family: var(--body); font-size: .9rem; }
-.rowgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; }
-.rowgrid .lbl { font-size: .85rem; }
+.rowgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px 10px; }
+.rowgrid .field { gap: 2px; min-width: 0; }
+.rowgrid .lbl { font-size: .8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rowgrid input:not([type=checkbox], [type=radio]), .rowgrid select { padding: 6px 8px; min-height: 40px; }
+.rowgrid .seg { flex-wrap: nowrap; gap: 4px; }
+.rowgrid .seg span { padding: 8px 8px; font-size: .85rem; }
+.rowgrid .check { min-height: 40px; }
+/* Wide fill pages: simple fields sit side by side; tables and long text take the full width. */
+body.wide .sheet-body fieldset { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px 20px; }
+body.wide .sheet-body .field:has(textarea, .rowcards, .tbl-wrap, .row2) { grid-column: 1 / -1; }
+body.wide .sheet-body .row2 { grid-column: 1 / -1; }
+body.wide .sheet-head { padding: 14px 20px; }
+body.wide .sheet-head h1 { font-size: 1.4rem; }
 .rowcard input:not([type=checkbox], [type=radio]), .rowcard select, .rowcard .seg span { background: var(--surface); }
 .sheet-foot { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: var(--bg); }
 .sheet-foot .err { color: var(--bad); font-weight: 600; }
@@ -264,7 +275,7 @@ async function load() {
 
 function render() {
   document.querySelectorAll('nav a').forEach(a => a.dataset.view === S.view ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
-  document.body.classList.toggle('wide', useSheet(S.fill));
+  document.body.classList.toggle('wide', !!S.fill);
   if (S.offline) { app.innerHTML = `<div class="notice"><h2>Can't reach the QA server</h2><p>Check that the QA forms server is running on the office PC and that this device is on the plant network, then reload the page.</p></div>`; return; }
   if (!S.ready) return;
   if (S.fill) return renderFill();
@@ -334,7 +345,7 @@ function sheetCell(c, name) {
 function tableRow(f, k) {
   if (useSheet(S.fill)) return `<tr data-row="${k}">${f.columns.map(c => `<td>${sheetCell(c, `${f.id}__${k}__${c.id}`)}</td>`).join('')}</tr>`;
   if (isCards(f)) return `<div class="rowcard" data-row="${k}"><div class="rowcard-h"><span class="rownum"></span><button type="button" class="btn link" data-delrow>Remove</button></div>
-    <div class="rowgrid">${f.columns.map(c => `<div class="field"><span class="lbl">${esc(c.label)}</span>${control(c, `${f.id}__${k}__${c.id}`, true)}</div>`).join('')}</div></div>`;
+    <div class="rowgrid">${f.columns.map(c => `<div class="field"${(c.span || c.type === 'passfail') ? ` style="grid-column: span ${+c.span || 2}"` : ''}><span class="lbl">${esc(c.label)}</span>${control(c, `${f.id}__${k}__${c.id}`, true)}</div>`).join('')}</div></div>`;
   return `<tr data-row="${k}"><td class="rownum"></td>${f.columns.map(c => `<td>${control(c, `${f.id}__${k}__${c.id}`, true)}</td>`).join('')}</tr>`;
 }
 
