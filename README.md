@@ -2,6 +2,8 @@
 
 Web versions of the plant's paper QA forms. QA staff pick a form, fill it on a phone, tablet or PC, and every submission is kept with who filled it and when.
 
+**Live demo:** https://mahindra-nwf.github.io/qa-forms/
+
 ## Run it on the plant network
 
 Needs [Node.js](https://nodejs.org) 18 or newer. No packages to install.
