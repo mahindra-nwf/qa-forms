@@ -9,6 +9,7 @@
   --bg: #eef2f5; --surface: #ffffff; --ink: #14212b; --muted: #5b6b78; --line: #d3dde4;
   --accent: #0d6a87; --accent-ink: #ffffff; --accent-soft: #e1eff4;
   --good: #1f7a4d; --good-soft: #e3f3ea; --bad: #b3261e; --bad-soft: #fbe7e5;
+  --paper: #ffffff; --rule: #26323b; --cellhead: #e6eaed;
   --display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
   --body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
@@ -16,11 +17,13 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #0d151b; --surface: #15212a; --ink: #e3ecf2; --muted: #8fa2b1; --line: #273744;
   --accent: #56b6d6; --accent-ink: #062530; --accent-soft: #163543;
-  --good: #5fc48f; --good-soft: #143424; --bad: #f08a80; --bad-soft: #3d1a17; color-scheme: dark } }
+  --good: #5fc48f; --good-soft: #143424; --bad: #f08a80; --bad-soft: #3d1a17;
+  --paper: #15212a; --rule: #5a6f7e; --cellhead: #1f303c; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #0d151b; --surface: #15212a; --ink: #e3ecf2; --muted: #8fa2b1; --line: #273744;
   --accent: #56b6d6; --accent-ink: #062530; --accent-soft: #163543;
-  --good: #5fc48f; --good-soft: #143424; --bad: #f08a80; --bad-soft: #3d1a17; color-scheme: dark }
+  --good: #5fc48f; --good-soft: #143424; --bad: #f08a80; --bad-soft: #3d1a17;
+  --paper: #15212a; --rule: #5a6f7e; --cellhead: #1f303c; color-scheme: dark }
 
 body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
@@ -109,6 +112,49 @@ td.rownum { font-family: var(--mono); color: var(--muted); width: 1%; }
 .rowcard input:not([type=checkbox], [type=radio]), .rowcard select, .rowcard .seg span { background: var(--surface); }
 .sheet-foot { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: var(--bg); }
 .sheet-foot .err { color: var(--bad); font-weight: 600; }
+
+/* Paper-sheet layout */
+body.wide main, body.wide .top-in { max-width: 1400px; }
+.paper { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 20px 20px 0; display: grid; gap: 14px; overflow: hidden; }
+.paper-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px 24px; flex-wrap: wrap; }
+.paper-head h1 { font-family: var(--body); font-weight: 400; font-size: 2rem; }
+.paper-who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 600; }
+.paper-who .req { color: var(--bad); }
+.paper-who input { width: 220px; }
+.grid-wrap { overflow-x: auto; border: 2px solid var(--rule); }
+table.grid { table-layout: fixed; width: 100%; min-width: 1060px; border-collapse: collapse; }
+.grid th { background: var(--cellhead); color: var(--ink); font: 700 .66rem/1.2 var(--body); text-transform: uppercase; letter-spacing: .02em;
+  text-align: center; white-space: normal; padding: 6px 3px 0; border: 1px solid var(--rule); vertical-align: middle; height: 48px; }
+.grid td { border: 1px solid var(--rule); padding: 0; height: 44px; vertical-align: middle; }
+.grid td:focus-within { background: var(--accent-soft); }
+.grid input:not([type=checkbox], [type=radio]), .grid select {
+  border: 0; border-radius: 0; background: transparent; width: 100%; min-width: 0; height: 44px; padding: 0 5px; font-size: 15px; }
+.grid input:focus-visible, .grid select:focus-visible { outline: 0; }
+.grid select { appearance: none; -webkit-appearance: none; text-align: center; }
+.grid input[type=number] { -moz-appearance: textfield; text-align: center; }
+.grid input[type=number]::-webkit-inner-spin-button, .grid input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; display: none; margin: 0; }
+.grid .tick { display: block; width: 24px; height: 24px; margin: auto; accent-color: var(--accent); }
+.ar { display: flex; height: 44px; }
+.ar label { flex: 1; position: relative; display: flex; }
+.ar label + label { border-left: 1px solid var(--rule); }
+.ar input { position: absolute; inset: 0; opacity: 0; margin: 0; }
+.ar span { flex: 1; display: grid; place-items: center; font-weight: 700; color: var(--muted); cursor: pointer; }
+.ar input:checked + span { background: var(--accent); color: var(--accent-ink); }
+.ar input:is([value="Pass"], [value="Accepted"]):checked + span { background: var(--good); color: var(--paper); }
+.ar input:is([value="Fail"], [value="Rejected"]):checked + span { background: var(--bad); color: var(--paper); }
+.ar input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ar-h { display: flex; margin: 4px -3px 0; border-top: 1px solid var(--rule); }
+.ar-h span { flex: 1; padding: 2px 0; }
+.ar-h span + span { border-left: 1px solid var(--rule); }
+.foot-notes { display: grid; gap: 2px; }
+.foot-notes p { margin: 0; font-size: .78rem; line-height: 1.35; color: var(--muted); }
+.paper-lines { display: flex; flex-wrap: wrap; gap: 14px 32px; }
+.line { display: flex; align-items: flex-end; gap: 8px; flex: 1 1 260px; }
+.line > span { white-space: nowrap; font-weight: 600; }
+.line input { border: 0; border-bottom: 1px solid var(--rule); border-radius: 0; background: transparent; }
+.line.wide { flex-basis: 100%; }
+.doc-info { margin: 0; text-align: center; font-size: .72rem; color: var(--muted); }
+.paper .sheet-foot { margin: 0 -20px; }
 
 /* History */
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
@@ -215,6 +261,7 @@ async function load() {
 
 function render() {
   document.querySelectorAll('nav a').forEach(a => a.dataset.view === S.view ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+  document.body.classList.toggle('wide', S.fill?.layout === 'sheet');
   if (S.offline) { app.innerHTML = `<div class="notice"><h2>Can't reach the QA server</h2><p>Check that the QA forms server is running on the office PC and that this device is on the plant network, then reload the page.</p></div>`; return; }
   if (!S.ready) return;
   if (S.fill) return renderFill();
@@ -250,7 +297,7 @@ function control(f, name, inTable) {
   const al = inTable ? ` aria-label="${esc(f.label)}"` : ` id="${esc(name)}"`;
   switch (f.type) {
     case 'textarea': return `<textarea name="${esc(name)}" rows="3"${req}${al}></textarea>`;
-    case 'number': return `<span class="num"><input type="number" step="any" inputmode="decimal" name="${esc(name)}"${req}${al}>${f.unit ? `<span class="unit">${esc(f.unit)}</span>` : ''}</span>`;
+    case 'number': return `<span class="num"><input type="number" step="any" name="${esc(name)}"${req}${al}>${f.unit ? `<span class="unit">${esc(f.unit)}</span>` : ''}</span>`;
     case 'select': return `<select name="${esc(name)}"${req}${al}><option value="">Choose…</option>${(f.options || []).map(o => `<option>${esc(o)}</option>`).join('')}</select>`;
     case 'passfail': return `<span class="seg" role="radiogroup" aria-label="${esc(f.label)}">${(f.options || ['Pass', 'Fail', 'N/A']).map((o, i) =>
       `<label><input type="radio" name="${esc(name)}" value="${esc(o)}"${req && i === 0 ? ' required' : ''}><span>${esc(o)}</span></label>`).join('')}</span>`;
@@ -263,7 +310,20 @@ function control(f, name, inTable) {
 // Tables with many columns render each row as a card so they fit a tablet without sideways scrolling.
 const isCards = f => f.columns.length > 6;
 
+// Paper-sheet layout: one ruled grid like the printed log, sized for an iPad in landscape.
+function sheetCell(c, name) {
+  const al = ` aria-label="${esc(c.label)}"`;
+  switch (c.type) {
+    case 'passfail': return `<span class="ar">${(c.options || ['Pass', 'Fail', 'N/A']).map(o =>
+      `<label><input type="radio" name="${esc(name)}" value="${esc(o)}" aria-label="${esc(c.label)}: ${esc(o)}"><span>${esc(o[0])}</span></label>`).join('')}</span>`;
+    case 'checkbox': return `<input type="checkbox" class="tick" name="${esc(name)}"${al}>`;
+    case 'select': return `<select name="${esc(name)}"${al}><option value=""></option>${(c.options || []).map(o => `<option>${esc(o)}</option>`).join('')}</select>`;
+    default: return control(c, name, true);
+  }
+}
+
 function tableRow(f, k) {
+  if (S.fill?.layout === 'sheet') return `<tr data-row="${k}">${f.columns.map(c => `<td>${sheetCell(c, `${f.id}__${k}__${c.id}`)}</td>`).join('')}</tr>`;
   if (isCards(f)) return `<div class="rowcard" data-row="${k}"><div class="rowcard-h"><span class="rownum"></span><button type="button" class="btn link" data-delrow>Remove</button></div>
     <div class="rowgrid">${f.columns.map(c => `<div class="field"><span class="lbl">${esc(c.label)}</span>${control(c, `${f.id}__${k}__${c.id}`, true)}</div>`).join('')}</div></div>`;
   return `<tr data-row="${k}"><td class="rownum"></td>${f.columns.map(c => `<td>${control(c, `${f.id}__${k}__${c.id}`, true)}</td>`).join('')}</tr>`;
@@ -284,8 +344,42 @@ function fieldHtml(f) {
 }
 
 function numberRows() {
-  app.querySelectorAll('[data-table]').forEach(tb => tb.querySelectorAll('[data-row]').forEach((r, i) =>
-    r.querySelector('.rownum').textContent = r.tagName === 'TR' ? i + 1 : `Line ${i + 1}`));
+  app.querySelectorAll('[data-table]').forEach(tb => tb.querySelectorAll('[data-row]').forEach((r, i) => {
+    const n = r.querySelector('.rownum'); if (n) n.textContent = r.tagName === 'TR' ? i + 1 : `Line ${i + 1}`;
+  }));
+}
+
+const staffInput = () => `<input type="text" id="_staff" name="_staff" list="staffList" required autocomplete="off" value="${esc(ls.get('qa-staff'))}" placeholder="Pick or type your name">
+  <datalist id="staffList">${S.staff.map(s => `<option value="${esc(s.name)}">`).join('')}</datalist>`;
+const submitBar = `<div class="sheet-foot"><button class="btn primary" type="submit" id="submitBtn">Submit form</button><span class="err" id="err" role="alert"></span></div>`;
+
+function renderPaper(f) {
+  const grid = allFields(f).find(x => x.type === 'table');
+  const others = allFields(f).filter(x => x !== grid);
+  const total = grid.columns.reduce((s, c) => s + (c.w || 1), 0);
+  const rows = Array.from({ length: grid.rows || 10 }, () => tableRow(grid, S.rowSeq++)).join('');
+  app.innerHTML = `<div><button class="btn link" id="back">← All forms</button></div>
+  <form class="paper" id="sheet" novalidate>
+    <div class="paper-head">
+      <h1>${esc(f.title || f.name)}</h1>
+      <div class="paper-who"><label for="_staff">Filled by <span class="req" aria-hidden="true">*</span></label>${staffInput()}<span class="mono muted" id="nowStamp"></span></div>
+    </div>
+    <div class="grid-wrap"><table class="grid">
+      <colgroup>${grid.columns.map(c => `<col style="width:${((c.w || 1) / total * 100).toFixed(2)}%">`).join('')}</colgroup>
+      <thead><tr>${grid.columns.map(c => `<th>${esc(c.label)}${c.unit ? ` ${esc(c.unit)}` : ''}${c.type === 'passfail'
+        ? `<span class="ar-h">${(c.options || ['Pass', 'Fail', 'N/A']).map(o => `<span>${esc(o[0])}</span>`).join('')}</span>` : ''}</th>`).join('')}</tr></thead>
+      <tbody data-table="${esc(grid.id)}">${rows}</tbody>
+    </table></div>
+    <div><button type="button" class="btn link" data-addrow="${esc(grid.id)}">+ Add row</button></div>
+    ${(f.footnotes || []).length ? `<div class="foot-notes">${f.footnotes.map(t => `<p>${esc(t)}</p>`).join('')}</div>` : ''}
+    <div class="paper-lines">
+      ${others.map(o => `<label class="line" for="${esc(o.id)}"><span>${esc(o.label)}:</span>${control(o, o.id)}</label>`).join('')}
+      <label class="line wide" for="_notes"><span>Comments / corrective action:</span><input type="text" id="_notes" name="_notes"></label>
+    </div>
+    ${f.docInfo ? `<p class="doc-info">${esc(f.docInfo)}</p>` : ''}
+    ${submitBar}
+  </form>`;
+  bindFill(f);
 }
 
 function openFill(id) {
@@ -295,6 +389,7 @@ function openFill(id) {
 
 function renderFill() {
   const f = S.fill;
+  if (f.layout === 'sheet') return renderPaper(f);
   app.innerHTML = `<div><button class="btn link" id="back">← All forms</button></div>
   <form class="sheet" id="sheet" novalidate>
     <div class="sheet-head">
@@ -305,21 +400,19 @@ function renderFill() {
     <div class="sheet-body">
       <fieldset><legend>Record</legend>
         <div class="row2">
-          <label class="field" for="_staff"><span class="lbl">Filled by <span class="req" aria-hidden="true">*</span></span>
-            <input type="text" id="_staff" name="_staff" list="staffList" required autocomplete="off" value="${esc(ls.get('qa-staff'))}" placeholder="Pick or type your name">
-            <datalist id="staffList">${S.staff.map(s => `<option value="${esc(s.name)}">`).join('')}</datalist></label>
+          <label class="field" for="_staff"><span class="lbl">Filled by <span class="req" aria-hidden="true">*</span></span>${staffInput()}</label>
           <div class="field"><span class="lbl">Date and time</span><span class="mono" style="padding:8px 0" id="nowStamp"></span></div>
         </div>
       </fieldset>
       ${(f.sections || []).map(sec => `<fieldset><legend>${esc(sec.title || '')}</legend>${(sec.fields || []).map(fieldHtml).join('')}</fieldset>`).join('')}
       <fieldset><legend>Notes</legend><label class="field" for="_notes"><span class="lbl">Comments or corrective actions</span><textarea id="_notes" name="_notes" rows="3"></textarea></label></fieldset>
     </div>
-    <div class="sheet-foot">
-      <button class="btn primary" type="submit" id="submitBtn"${S.canWrite ? '' : ' disabled'}>Submit form</button>
-      <span class="err" id="err" role="alert"></span>
-      ${S.canWrite ? '' : '<span class="muted">You have view-only access, so you can\'t submit.</span>'}
-    </div>
+    ${submitBar}
   </form>`;
+  bindFill(f);
+}
+
+function bindFill(f) {
   const stamp = () => { const el = document.getElementById('nowStamp'); if (el) el.textContent = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); };
   stamp(); clearInterval(S.clock); S.clock = setInterval(stamp, 30000);
   numberRows();
@@ -330,8 +423,12 @@ function renderFill() {
     numberRows();
   });
   app.querySelector('#sheet').addEventListener('click', e => {
-    if (!e.target.matches('[data-delrow]')) return;
-    e.target.closest('[data-row]').remove(); numberRows();
+    if (e.target.matches('[data-delrow]')) { e.target.closest('[data-row]').remove(); numberRows(); return; }
+    // Tapping a selected A/R box again clears it, like erasing a tick on paper.
+    const r = e.target.closest('.ar input');
+    if (!r) return;
+    if (r.dataset.was) { r.checked = false; delete r.dataset.was; }
+    else { document.getElementsByName(r.name).forEach(x => delete x.dataset.was); r.dataset.was = '1'; }
   });
   document.getElementById('sheet').onsubmit = submitFill;
 }
