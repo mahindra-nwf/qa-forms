@@ -169,6 +169,14 @@ table.grid { table-layout: fixed; width: 100%; min-width: 1060px; border-collaps
 .doc-info { margin: 0; text-align: center; font-size: .72rem; color: var(--muted); }
 .paper .sheet-foot { margin: 0 -20px; }
 
+/* Fixed-row tables (one row per ingredient) */
+table.fixed th.rowlabel { font: 600 .95rem var(--body); letter-spacing: 0; color: var(--ink); background: var(--bg); white-space: nowrap; text-align: left; }
+table.fixed td input:not([type=checkbox], [type=radio]), table.fixed td select { min-width: 70px; }
+table.fixed .seg { flex-wrap: nowrap; }
+table.fixed td:has(.seg) { width: 1%; white-space: nowrap; }
+table.fixed tr.skipped td { background: var(--bg); }
+table.fixed tr.skipped input:disabled, table.fixed tr.skipped select:disabled { opacity: .6; text-align: center; }
+
 /* Checklist grid */
 table.matrix { table-layout: fixed; width: 100%; border-collapse: collapse; font-size: .92rem; background: var(--paper); }
 .matrix th, .matrix td { border: 1px solid var(--rule); padding: 6px 8px; vertical-align: middle; }
@@ -366,10 +374,13 @@ function sheetCell(c, name) {
   }
 }
 
-function tableRow(f, k) {
+// `label` is set for forms with a fixed list of rows (e.g. one row per ingredient).
+function tableRow(f, k, label) {
   if (useSheet(S.fill)) return `<tr data-row="${k}">${f.columns.map(c => `<td>${sheetCell(c, `${f.id}__${k}__${c.id}`)}</td>`).join('')}</tr>`;
   if (isCards(f)) return `<div class="rowcard" data-row="${k}"><div class="rowcard-h"><span class="rownum"></span><button type="button" class="btn link" data-delrow>Remove</button></div>
     <div class="rowgrid">${f.columns.map(c => `<div class="field"${(c.span || c.type === 'passfail') ? ` style="grid-column: span ${+c.span || 2}"` : ''}><span class="lbl">${esc(c.label)}</span>${control(c, `${f.id}__${k}__${c.id}`, true)}</div>`).join('')}</div></div>`;
+  if (label != null) return `<tr data-row="${k}" data-label="${esc(label)}"><th scope="row" class="rowlabel">${esc(label)}</th>${f.columns.map(c =>
+    `<td>${control(c, `${f.id}__${k}__${c.id}`, true)}</td>`).join('')}</tr>`;
   return `<tr data-row="${k}"><td class="rownum"></td>${f.columns.map(c => `<td>${control(c, `${f.id}__${k}__${c.id}`, true)}</td>`).join('')}</tr>`;
 }
 
@@ -416,6 +427,10 @@ function fieldHtml(f) {
   if (f.type === 'matrix') return matrixHtml(f);
   const lbl = `<span class="lbl">${esc(f.label)}${f.required ? ' <span class="req" aria-hidden="true">*</span>' : ''}</span>`;
   const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : '';
+  if (f.type === 'table' && f.fixedRows) {
+    return `<div class="field">${lbl}${hint}<div class="tbl-wrap"><table class="fixed"><thead><tr><th>${esc(f.rowHeader || 'Item')}</th>${f.columns.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead>
+      <tbody data-table="${esc(f.id)}">${f.fixedRows.map(r => tableRow(f, S.rowSeq++, r)).join('')}</tbody></table></div></div>`;
+  }
   if (f.type === 'table') {
     const rows = Array.from({ length: isCards(f) ? 2 : f.rows || 3 }, () => tableRow(f, S.rowSeq++)).join('');
     const add = f.addRows === false ? '' : `<div><button type="button" class="btn link" data-addrow="${esc(f.id)}">+ Add row</button></div>`;
@@ -513,6 +528,17 @@ function bindFill(f) {
   });
   app.querySelector('#sheet').addEventListener('click', e => {
     if (e.target.matches('[data-delrow]')) { e.target.closest('[data-row]').remove(); numberRows(); return; }
+    // A row marked "not used" (e.g. ingredient = No) greys out its other cells and shows N/A, like the paper.
+    const skipBtn = e.target.closest('tr[data-row] input[type=radio]');
+    const sw = skipBtn && allFields(f).find(x => x.id === skipBtn.closest('[data-table]').dataset.table)?.skipWhen;
+    if (sw && skipBtn.name.endsWith('__' + sw.column)) {
+      const tr = skipBtn.closest('tr'), skip = skipBtn.checked && skipBtn.value === sw.value;
+      tr.classList.toggle('skipped', skip);
+      tr.querySelectorAll('input:not([type=radio]), select').forEach(i => {
+        i.disabled = skip; i.placeholder = skip ? 'N/A' : ''; if (skip) i.value = '';
+        if (i.tagName === 'SELECT') i.options[0].text = skip ? 'N/A' : 'Choose…';
+      });
+    }
     const m = e.target.closest('.mark');
     if (m) { setMark(m, { '': 'OK', OK: 'Issue', Issue: '' }[m.nextElementSibling.value]); return; }
     // Tapping a selected A/R box again clears it, like erasing a tick on paper.
@@ -537,8 +563,9 @@ function collect(form, f) {
   for (const fld of allFields(f)) {
     if (fld.type === 'table') {
       values[fld.id] = [...form.querySelectorAll(`[data-table="${CSS.escape(fld.id)}"] [data-row]`)].map(tr => {
-        const row = {}; fld.columns.forEach(c => row[c.id] = readValue(c, fd, `${fld.id}__${tr.dataset.row}__${c.id}`)); return row;
-      }).filter(row => Object.values(row).some(v => v !== null && v !== false));
+        const row = {}; fld.columns.forEach(c => row[c.id] = readValue(c, fd, `${fld.id}__${tr.dataset.row}__${c.id}`));
+        return tr.dataset.label ? { row: tr.dataset.label, ...row } : row;
+      }).filter(row => Object.entries(row).some(([k, v]) => k !== 'row' && v !== null && v !== false));
     } else if (fld.type === 'matrix') {
       const items = {}, initials = {}, text = name => String(fd.get(name) || '').trim() || null;
       fld.items.forEach(it => {
@@ -658,8 +685,8 @@ function renderDetail() {
     if (f.type === 'matrix') return `</dl>${matrixView(f, v)}<dl class="vals">`;
     if (f.type === 'table' || Array.isArray(v)) {
       const cols = f.columns || Object.keys(v?.[0] || {}).map(k => ({ id: k, label: k }));
-      return `</dl><div class="field"><span class="lbl">${esc(f.label)}</span>${v?.length ? `<div class="tbl-wrap"><table><thead><tr><th>#</th>${cols.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>` +
-        v.map((r, i) => `<tr><td class="rownum">${i + 1}</td>${cols.map(c => `<td>${showVal(c, r[c.id])}</td>`).join('')}</tr>`).join('') + `</tbody></table></div>` : '<span class="muted">No rows entered</span>'}</div><dl class="vals">`;
+      return `</dl><div class="field"><span class="lbl">${esc(f.label)}</span>${v?.length ? `<div class="tbl-wrap"><table><thead><tr><th>${f.fixedRows ? esc(f.rowHeader || 'Item') : '#'}</th>${cols.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>` +
+        v.map((r, i) => `<tr>${r.row ? `<th scope="row" class="rowlabel">${esc(r.row)}</th>` : `<td class="rownum">${i + 1}</td>`}${cols.map(c => `<td>${showVal(c, r[c.id])}</td>`).join('')}</tr>`).join('') + `</tbody></table></div>` : '<span class="muted">No rows entered</span>'}</div><dl class="vals">`;
     }
     return `<dt>${esc(f.label)}</dt><dd>${showVal(f, v)}</dd>`;
   }).join('') + '</dl></fieldset>').join('');

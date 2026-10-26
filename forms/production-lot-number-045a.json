@@ -1,0 +1,46 @@
+{
+  "name": "Production Lot Number",
+  "code": "Log 045 A",
+  "category": "Production",
+  "frequency": "Each production run",
+  "description": "Prep/mix ingredients and lot numbers used for this production run. Revision 11, 06/13/2022.",
+  "sections": [
+    {
+      "title": "Production",
+      "fields": [
+        { "id": "productionDate", "label": "Production date", "type": "date", "required": true, "default": "today" },
+        { "id": "itemNumber", "label": "Item number", "type": "text", "required": true },
+        { "id": "variety", "label": "Variety description", "type": "text", "required": true }
+      ]
+    },
+    {
+      "title": "Prep / Mix",
+      "fields": [
+        {
+          "id": "ingredients",
+          "label": "Ingredients used",
+          "type": "table",
+          "hint": "Tap No for ingredients not in this item; the rest of that row becomes N/A.",
+          "rowHeader": "Item",
+          "fixedRows": ["Surimi", "Redi Chunk", "Mayonnaise", "Other Protein", "Carrot", "Dill", "Other 1", "Other 2", "Sriracha Sauce", "Starch", "Sugar"],
+          "skipWhen": { "column": "used", "value": "No" },
+          "columns": [
+            { "id": "used", "label": "Used", "type": "passfail", "options": ["Yes", "No"] },
+            { "id": "lot", "label": "Lot number", "type": "text" },
+            { "id": "qtyUsed", "label": "Quantity used", "type": "number" },
+            { "id": "unitUsed", "label": "Unit", "type": "select", "options": ["case", "lb", "kg", "ea", "bag", "gal"] },
+            { "id": "qtyExtra", "label": "Quantity extra", "type": "number" },
+            { "id": "unitExtra", "label": "Unit", "type": "select", "options": ["case", "lb", "kg", "ea", "bag", "gal"] }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "QA verification",
+      "fields": [
+        { "id": "qaVerification", "label": "QA verification", "type": "text" },
+        { "id": "qaDate", "label": "Date", "type": "date" }
+      ]
+    }
+  ]
+}
