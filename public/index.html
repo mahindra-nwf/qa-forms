@@ -1,0 +1,481 @@
+<title>Plant QA Forms</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky top bar with three tabs; one centered column (forms list / fill sheet / history / staff). */
+:root {
+  --bg: #eef2f5; --surface: #ffffff; --ink: #14212b; --muted: #5b6b78; --line: #d3dde4;
+  --accent: #0d6a87; --accent-ink: #ffffff; --accent-soft: #e1eff4;
+  --good: #1f7a4d; --good-soft: #e3f3ea; --bad: #b3261e; --bad-soft: #fbe7e5;
+  --display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d151b; --surface: #15212a; --ink: #e3ecf2; --muted: #8fa2b1; --line: #273744;
+  --accent: #56b6d6; --accent-ink: #062530; --accent-soft: #163543;
+  --good: #5fc48f; --good-soft: #143424; --bad: #f08a80; --bad-soft: #3d1a17; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d151b; --surface: #15212a; --ink: #e3ecf2; --muted: #8fa2b1; --line: #273744;
+  --accent: #56b6d6; --accent-ink: #062530; --accent-soft: #163543;
+  --good: #5fc48f; --good-soft: #143424; --bad: #f08a80; --bad-soft: #3d1a17; color-scheme: dark }
+
+body { background: var(--bg); color: var(--ink); font: 16px/1.5 var(--body); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.15; text-wrap: balance; margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--mono); font-size: .82em; }
+.muted { color: var(--muted); }
+
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+.top-in, main { max-width: 860px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.top-in { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 10px; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 1.25rem; letter-spacing: .01em; margin-right: auto; }
+.brand small { font-family: var(--mono); font-weight: 400; font-size: .7rem; color: var(--muted); margin-left: 8px; letter-spacing: .06em; text-transform: uppercase; }
+nav { display: flex; gap: 4px; }
+.demo { background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: .9rem; }
+.demo .top-in { padding-block: 8px; }
+nav a { text-decoration: none; color: var(--muted); font-weight: 600; padding: 6px 12px; border-radius: 6px; }
+nav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+
+main { padding-block: 24px 64px; display: grid; gap: 20px; }
+.head { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.head h1 { font-size: 1.9rem; }
+.eyebrow { font-family: var(--mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.link { border: 0; background: none; color: var(--accent); padding: 4px 0; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.notice { border: 1px dashed var(--line); border-radius: 8px; padding: 28px 24px; background: var(--surface); display: grid; gap: 8px; }
+.notice h2 { font-size: 1.3rem; }
+.notice p { margin: 0; max-width: 60ch; }
+
+.group { display: grid; gap: 8px; }
+.group h2 { font-size: .8rem; font-family: var(--mono); font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.forms { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.form-row { all: unset; box-sizing: border-box; cursor: pointer; background: var(--surface); padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 2px 16px; align-items: center; }
+.form-row:hover { background: var(--accent-soft); }
+.form-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.form-row .name { font-weight: 600; min-width: 0; }
+.form-row .meta { font-size: .88rem; color: var(--muted); min-width: 0; grid-column: 1; }
+.form-row .go { grid-row: 1 / span 2; grid-column: 2; color: var(--accent); font-weight: 600; }
+
+/* The fill sheet */
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.sheet-head { padding: 18px 20px; border-bottom: 2px solid var(--ink); display: grid; gap: 4px; }
+.sheet-head h1 { font-size: 1.6rem; }
+.sheet-body { padding: 4px 20px 20px; display: grid; gap: 4px; }
+.sheet fieldset { border: 0; margin: 0; padding: 16px 0 0; display: grid; gap: 14px; }
+.sheet legend { font-family: var(--display); font-weight: 600; font-size: 1.15rem; padding: 0; margin-bottom: 4px; width: 100%; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.field { display: grid; gap: 4px; }
+.field > .lbl { font-weight: 600; font-size: .95rem; }
+.field > .lbl .req { color: var(--bad); }
+.field > .hint { font-size: .85rem; color: var(--muted); }
+.row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+input[type=text], input[type=number], input[type=date], input[type=time], select, textarea {
+  width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--bg); min-width: 0; }
+textarea { resize: vertical; }
+.num { display: flex; align-items: center; gap: 6px; }
+.num .unit { font-family: var(--mono); font-size: .85rem; color: var(--muted); white-space: nowrap; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; }
+.seg span { display: inline-block; border: 1px solid var(--line); border-radius: 6px; padding: 6px 14px; font-weight: 600; cursor: pointer; background: var(--bg); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.seg input:is([value="Pass"], [value="Accepted"]):checked + span { background: var(--good); border-color: var(--good); color: var(--surface); }
+.seg input:is([value="Fail"], [value="Rejected"]):checked + span { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.check { display: inline-flex; gap: 8px; align-items: center; }
+.check input { width: 20px; height: 20px; accent-color: var(--accent); }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: middle; }
+th { font-size: .78rem; font-family: var(--mono); font-weight: 500; letter-spacing: .04em; color: var(--muted); background: var(--bg); white-space: nowrap; }
+td input:not([type=checkbox], [type=radio]), td select { min-width: 110px; }
+td input[type=number] { min-width: 80px; }
+td.rownum { font-family: var(--mono); color: var(--muted); width: 1%; }
+.rowcards { display: grid; gap: 12px; }
+.rowcard { border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px 14px; background: var(--bg); }
+.rowcard-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-family: var(--mono); font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.rowcard-h .btn.link { text-transform: none; letter-spacing: 0; font-family: var(--body); font-size: .9rem; }
+.rowgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; }
+.rowgrid .lbl { font-size: .85rem; }
+.rowcard input:not([type=checkbox], [type=radio]), .rowcard select, .rowcard .seg span { background: var(--surface); }
+.sheet-foot { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; gap: 12px; align-items: center; flex-wrap: wrap; background: var(--bg); }
+.sheet-foot .err { color: var(--bad); font-weight: 600; }
+
+/* History */
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.filters label { display: grid; gap: 2px; font-size: .8rem; color: var(--muted); font-weight: 600; }
+.subs { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.sub { all: unset; box-sizing: border-box; cursor: pointer; background: var(--surface); padding: 12px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; }
+.sub:hover { background: var(--accent-soft); }
+.sub:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sub .when { font-family: var(--mono); font-size: .82rem; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; font-size: .75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-left: 6px; }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.good { background: var(--good-soft); color: var(--good); }
+dl.vals { display: grid; grid-template-columns: minmax(120px, 34%) 1fr; gap: 8px 16px; margin: 0; }
+dl.vals dt { color: var(--muted); font-weight: 600; font-size: .92rem; }
+dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 520px) { dl.vals { grid-template-columns: 1fr; gap: 2px; } dl.vals dd { margin-bottom: 8px; } }
+
+/* Staff */
+.staff { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 6px 4px 14px; }
+.chip.ro { padding-right: 14px; }
+.chip button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 999px; }
+.chip button:hover { color: var(--bad); }
+.add { display: flex; gap: 8px; max-width: 420px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 6px; font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) { .toast { animation: rise .2s ease-out; } @keyframes rise { from { transform: translate(-50%, 8px); opacity: 0; } } }
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">Plant QA Forms<small>Quality records</small></div>
+    <nav>
+      <a href="#forms" data-view="forms">Forms</a>
+      <a href="#history" data-view="history">History</a>
+      <a href="#staff" data-view="staff">Staff</a>
+    </nav>
+  </div>
+</header>
+<div class="demo" id="demoBar" hidden><div class="top-in">Demo site. Entries are saved only in this browser and are not official QA records.</div></div>
+<main id="app">
+  <div class="notice"><h2>Loading forms…</h2><p class="muted">Connecting to the shared QA records.</p></div>
+</main>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+const S = { ready: false, offline: false, canWrite: true, canEdit: true,
+  forms: [], staff: [], subs: [], view: 'forms', fill: null, detail: null, rowSeq: 0,
+  filter: { form: '', who: '', from: '', to: '', q: '' } };
+const app = document.getElementById('app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtWhen = iso => { const d = new Date(iso); return isNaN(d) ? '' : d.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); };
+const ls = { get(k) { try { return localStorage.getItem(k) || ''; } catch { return ''; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 2600);
+}
+
+function go(view) {
+  S.view = view; S.fill = null; S.detail = null;
+  if (location.hash.slice(1) !== view) history.replaceState(null, '', '#' + view);
+  render(); window.scrollTo(0, 0);
+  load();
+}
+
+// On GitHub Pages there is no server: forms come from forms.json and entries stay in this browser.
+const DEMO = location.hostname.endsWith('github.io');
+const store = { get: k => { try { return JSON.parse(ls.get(k) || '[]'); } catch { return []; } }, set: (k, v) => ls.set(k, JSON.stringify(v)) };
+
+async function demoApi(method, url, body) {
+  const [, , kind, id] = url.split('/');
+  if (kind === 'forms') return (await fetch('forms.json', { cache: 'no-store' })).json();
+  const key = 'qa-demo-' + kind, list = store.get(key);
+  if (method === 'GET') return list;
+  if (method === 'DELETE') { store.set(key, list.filter(x => x.id !== decodeURIComponent(id))); return { ok: true }; }
+  const newId = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  if (kind === 'staff') {
+    if (list.some(s => s.name.toLowerCase() === body.name.toLowerCase())) throw new Error(`${body.name} is already listed.`);
+    const staff = [...list, { id: newId, name: body.name }].sort((a, b) => a.name.localeCompare(b.name));
+    store.set(key, staff); return staff;
+  }
+  const f = S.forms.find(x => x.id === body.formId);
+  const sub = { id: newId, formId: f.id, formName: f.name, formCode: f.code || '', category: f.category || '',
+    staffName: body.staffName, submittedAt: new Date().toISOString(), values: body.values, notes: body.notes };
+  store.set(key, [sub, ...list]); return sub;
+}
+
+async function apiCall(method, url, body) {
+  if (DEMO) return demoApi(method, url, body);
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body && JSON.stringify(body) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Could not reach the QA server.');
+  return data;
+}
+
+async function load() {
+  try {
+    [S.forms, S.staff, S.subs] = await Promise.all(['forms', 'staff', 'submissions'].map(k => apiCall('GET', '/api/' + k)));
+    S.offline = false; S.ready = true;
+  } catch { S.offline = true; }
+  if (!S.fill) render();
+}
+
+function render() {
+  document.querySelectorAll('nav a').forEach(a => a.dataset.view === S.view ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+  if (S.offline) { app.innerHTML = `<div class="notice"><h2>Can't reach the QA server</h2><p>Check that the QA forms server is running on the office PC and that this device is on the plant network, then reload the page.</p></div>`; return; }
+  if (!S.ready) return;
+  if (S.fill) return renderFill();
+  if (S.detail) return renderDetail();
+  ({ forms: renderForms, history: renderHistory, staff: renderStaff }[S.view] || renderForms)();
+}
+
+/* ---------- Forms list ---------- */
+function lastFilled(formId) { return S.subs.find(s => s.formId === formId); }
+
+function renderForms() {
+  if (!S.forms.length) {
+    app.innerHTML = `<div class="head"><div><div class="eyebrow">Forms</div><h1>Choose a form to fill</h1></div></div>
+      <div class="notice"><h2>No forms added yet</h2>
+      <p>Each paper QA form (pre-op inspection, temperature log, metal detector check and so on) will appear here as its own fillable sheet, grouped by area.</p>
+      <p class="muted">To add one, give the PDF, Word, Excel file or a photo of the paper form to your QA admin, who converts it with Claude.</p></div>`;
+    return;
+  }
+  const groups = {};
+  S.forms.forEach(f => (groups[f.category || 'General'] ||= []).push(f));
+  app.innerHTML = `<div class="head"><div><div class="eyebrow">Forms · ${S.forms.length}</div><h1>Choose a form to fill</h1></div></div>` +
+    Object.keys(groups).sort().map(g => `<section class="group"><h2>${esc(g)}</h2><div class="forms">` +
+      groups[g].map(f => { const l = lastFilled(f.id); return `<button class="form-row" data-form="${esc(f.id)}">
+        <span class="name">${f.code ? `<span class="mono muted">${esc(f.code)}</span> · ` : ''}${esc(f.name)}</span>
+        <span class="meta">${[f.frequency, l ? `Last filled ${fmtWhen(l.submittedAt)} by ${esc(l.staffName)}` : 'Not filled yet'].filter(Boolean).map(esc).join(' · ')}</span>
+        <span class="go">Fill →</span></button>`; }).join('') + `</div></section>`).join('');
+  app.querySelectorAll('[data-form]').forEach(b => b.onclick = () => openFill(b.dataset.form));
+}
+
+/* ---------- Fill a form ---------- */
+function control(f, name, inTable) {
+  const req = f.required ? ' required' : '';
+  const al = inTable ? ` aria-label="${esc(f.label)}"` : ` id="${esc(name)}"`;
+  switch (f.type) {
+    case 'textarea': return `<textarea name="${esc(name)}" rows="3"${req}${al}></textarea>`;
+    case 'number': return `<span class="num"><input type="number" step="any" inputmode="decimal" name="${esc(name)}"${req}${al}>${f.unit ? `<span class="unit">${esc(f.unit)}</span>` : ''}</span>`;
+    case 'select': return `<select name="${esc(name)}"${req}${al}><option value="">Choose…</option>${(f.options || []).map(o => `<option>${esc(o)}</option>`).join('')}</select>`;
+    case 'passfail': return `<span class="seg" role="radiogroup" aria-label="${esc(f.label)}">${(f.options || ['Pass', 'Fail', 'N/A']).map((o, i) =>
+      `<label><input type="radio" name="${esc(name)}" value="${esc(o)}"${req && i === 0 ? ' required' : ''}><span>${esc(o)}</span></label>`).join('')}</span>`;
+    case 'checkbox': return `<label class="check"><input type="checkbox" name="${esc(name)}"${inTable ? al : ''}><span>${esc(f.checkLabel || 'Done')}</span></label>`;
+    case 'date': case 'time': return `<input type="${f.type}" name="${esc(name)}"${req}${al}>`;
+    default: return `<input type="text" name="${esc(name)}"${req}${al}>`;
+  }
+}
+
+// Tables with many columns render each row as a card so they fit a tablet without sideways scrolling.
+const isCards = f => f.columns.length > 6;
+
+function tableRow(f, k) {
+  if (isCards(f)) return `<div class="rowcard" data-row="${k}"><div class="rowcard-h"><span class="rownum"></span><button type="button" class="btn link" data-delrow>Remove</button></div>
+    <div class="rowgrid">${f.columns.map(c => `<div class="field"><span class="lbl">${esc(c.label)}</span>${control(c, `${f.id}__${k}__${c.id}`, true)}</div>`).join('')}</div></div>`;
+  return `<tr data-row="${k}"><td class="rownum"></td>${f.columns.map(c => `<td>${control(c, `${f.id}__${k}__${c.id}`, true)}</td>`).join('')}</tr>`;
+}
+
+function fieldHtml(f) {
+  const lbl = `<span class="lbl">${esc(f.label)}${f.required ? ' <span class="req" aria-hidden="true">*</span>' : ''}</span>`;
+  const hint = f.hint ? `<span class="hint">${esc(f.hint)}</span>` : '';
+  if (f.type === 'table') {
+    const rows = Array.from({ length: f.rows || 3 }, () => tableRow(f, S.rowSeq++)).join('');
+    const add = f.addRows === false ? '' : `<div><button type="button" class="btn link" data-addrow="${esc(f.id)}">+ Add row</button></div>`;
+    if (isCards(f)) return `<div class="field">${lbl}${hint}<div class="rowcards" data-table="${esc(f.id)}">${rows}</div>${add}</div>`;
+    return `<div class="field">${lbl}${hint}<div class="tbl-wrap"><table><thead><tr><th>#</th>${f.columns.map(c => `<th>${esc(c.label)}${c.unit ? ` (${esc(c.unit)})` : ''}</th>`).join('')}</tr></thead>
+      <tbody data-table="${esc(f.id)}">${rows}</tbody></table></div>${f.addRows === false ? '' : `<div><button type="button" class="btn link" data-addrow="${esc(f.id)}">+ Add row</button></div>`}</div>`;
+  }
+  if (f.type === 'passfail' || f.type === 'checkbox') return `<div class="field">${lbl}${hint}${control(f, f.id)}</div>`;
+  return `<label class="field" for="${esc(f.id)}">${lbl}${hint}${control(f, f.id)}</label>`;
+}
+
+function numberRows() {
+  app.querySelectorAll('[data-table]').forEach(tb => tb.querySelectorAll('[data-row]').forEach((r, i) =>
+    r.querySelector('.rownum').textContent = r.tagName === 'TR' ? i + 1 : `Line ${i + 1}`));
+}
+
+function openFill(id) {
+  const f = S.forms.find(x => x.id === id); if (!f) return;
+  S.fill = f; render(); window.scrollTo(0, 0);
+}
+
+function renderFill() {
+  const f = S.fill;
+  app.innerHTML = `<div><button class="btn link" id="back">← All forms</button></div>
+  <form class="sheet" id="sheet" novalidate>
+    <div class="sheet-head">
+      <div class="eyebrow">${[f.code, f.category, f.frequency].filter(Boolean).map(esc).join(' · ')}</div>
+      <h1>${esc(f.name)}</h1>
+      ${f.description ? `<p class="muted" style="margin:0">${esc(f.description)}</p>` : ''}
+    </div>
+    <div class="sheet-body">
+      <fieldset><legend>Record</legend>
+        <div class="row2">
+          <label class="field" for="_staff"><span class="lbl">Filled by <span class="req" aria-hidden="true">*</span></span>
+            <input type="text" id="_staff" name="_staff" list="staffList" required autocomplete="off" value="${esc(ls.get('qa-staff'))}" placeholder="Pick or type your name">
+            <datalist id="staffList">${S.staff.map(s => `<option value="${esc(s.name)}">`).join('')}</datalist></label>
+          <div class="field"><span class="lbl">Date and time</span><span class="mono" style="padding:8px 0" id="nowStamp"></span></div>
+        </div>
+      </fieldset>
+      ${(f.sections || []).map(sec => `<fieldset><legend>${esc(sec.title || '')}</legend>${(sec.fields || []).map(fieldHtml).join('')}</fieldset>`).join('')}
+      <fieldset><legend>Notes</legend><label class="field" for="_notes"><span class="lbl">Comments or corrective actions</span><textarea id="_notes" name="_notes" rows="3"></textarea></label></fieldset>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn primary" type="submit" id="submitBtn"${S.canWrite ? '' : ' disabled'}>Submit form</button>
+      <span class="err" id="err" role="alert"></span>
+      ${S.canWrite ? '' : '<span class="muted">You have view-only access, so you can\'t submit.</span>'}
+    </div>
+  </form>`;
+  const stamp = () => { const el = document.getElementById('nowStamp'); if (el) el.textContent = new Date().toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }); };
+  stamp(); clearInterval(S.clock); S.clock = setInterval(stamp, 30000);
+  numberRows();
+  document.getElementById('back').onclick = () => go('forms');
+  app.querySelectorAll('[data-addrow]').forEach(b => b.onclick = () => {
+    const fld = allFields(f).find(x => x.id === b.dataset.addrow);
+    app.querySelector(`[data-table="${CSS.escape(fld.id)}"]`).insertAdjacentHTML('beforeend', tableRow(fld, S.rowSeq++));
+    numberRows();
+  });
+  app.querySelector('#sheet').addEventListener('click', e => {
+    if (!e.target.matches('[data-delrow]')) return;
+    e.target.closest('[data-row]').remove(); numberRows();
+  });
+  document.getElementById('sheet').onsubmit = submitFill;
+}
+
+const allFields = f => (f.sections || []).flatMap(s => s.fields || []);
+
+function readValue(f, fd, name) {
+  if (f.type === 'checkbox') return fd.get(name) != null;
+  const v = fd.get(name); if (v == null || v === '') return null;
+  return f.type === 'number' ? Number(v) : String(v).trim();
+}
+
+async function submitFill(e) {
+  e.preventDefault();
+  const form = e.target, err = document.getElementById('err');
+  if (!form.checkValidity()) {
+    const bad = form.querySelector(':invalid');
+    err.textContent = 'Fill in every field marked * before submitting.';
+    bad?.focus(); return;
+  }
+  const f = S.fill, fd = new FormData(form), values = {};
+  for (const fld of allFields(f)) {
+    if (fld.type === 'table') {
+      values[fld.id] = [...form.querySelectorAll(`[data-table="${CSS.escape(fld.id)}"] [data-row]`)].map(tr => {
+        const row = {}; fld.columns.forEach(c => row[c.id] = readValue(c, fd, `${fld.id}__${tr.dataset.row}__${c.id}`)); return row;
+      }).filter(row => Object.values(row).some(v => v !== null && v !== false));
+    } else values[fld.id] = readValue(fld, fd, fld.id);
+  }
+  const staffName = String(fd.get('_staff')).trim();
+  const btn = document.getElementById('submitBtn'); btn.disabled = true; err.textContent = '';
+  try {
+    await apiCall('POST', '/api/submissions', { formId: f.id, staffName, values, notes: String(fd.get('_notes') || '').trim() });
+    ls.set('qa-staff', staffName);
+    clearInterval(S.clock);
+    toast(`${f.name} submitted`);
+    go('forms');
+  } catch (x) {
+    btn.disabled = false;
+    err.textContent = x.message === 'Failed to fetch' ? 'Could not reach the QA server. Check the connection and press Submit again.' : x.message;
+  }
+}
+
+/* ---------- History ---------- */
+function hasFail(s) {
+  const vals = Object.values(s.values || {}).flatMap(v => Array.isArray(v) ? v.flatMap(Object.values) : [v]);
+  return vals.some(v => BAD.includes(v));
+}
+const BAD = ['Fail', 'Rejected'], GOOD = ['Pass', 'Accepted'];
+
+function filtered() {
+  const { form, who, from, to, q } = S.filter, ql = q.toLowerCase();
+  return S.subs.filter(s => (!form || s.formId === form) && (!who || s.staffName === who)
+    && (!from || s.submittedAt.slice(0, 10) >= from) && (!to || s.submittedAt.slice(0, 10) <= to)
+    && (!ql || JSON.stringify([s.formName, s.formCode, s.staffName, s.notes, s.values]).toLowerCase().includes(ql)));
+}
+
+function renderHistory() {
+  const people = [...new Set(S.subs.map(s => s.staffName))].sort();
+  const formOpts = [...new Map(S.subs.map(s => [s.formId, s.formName])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const F = S.filter;
+  app.innerHTML = `<div class="head"><div><div class="eyebrow">History</div><h1>Submitted forms</h1></div></div>
+    <div class="filters">
+      <label>Search<input type="text" id="fq" value="${esc(F.q)}" placeholder="Lot, product, note…"></label>
+      <label>Form<select id="fform"><option value="">All forms</option>${formOpts.map(([id, n]) => `<option value="${esc(id)}"${F.form === id ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+      <label>Filled by<select id="fwho"><option value="">Everyone</option>${people.map(p => `<option${F.who === p ? ' selected' : ''}>${esc(p)}</option>`).join('')}</select></label>
+      <label>From<input type="date" id="ffrom" value="${esc(F.from)}"></label>
+      <label>To<input type="date" id="fto" value="${esc(F.to)}"></label>
+    </div>
+    <div id="list"></div>`;
+  const list = () => {
+    const rows = filtered();
+    document.getElementById('list').innerHTML = !S.subs.length
+      ? `<div class="notice"><h2>No submissions yet</h2><p>Every form your team submits shows up here, newest first, with who filled it and when.</p></div>`
+      : !rows.length ? `<div class="notice"><h2>No matches</h2><p>No submitted forms match these filters. Clear a filter to see more.</p></div>`
+      : `<p class="muted" style="margin:0 0 8px">${rows.length} of ${S.subs.length} record${S.subs.length === 1 ? '' : 's'}</p><div class="subs">` + rows.map(s => `<button class="sub" data-sub="${esc(s.id)}">
+          <span>${s.formCode ? `<span class="mono muted">${esc(s.formCode)}</span> · ` : ''}<strong>${esc(s.formName)}</strong>${hasFail(s) ? '<span class="pill bad">Fail or reject</span>' : ''}</span>
+          <span class="when">${esc(fmtWhen(s.submittedAt))}</span>
+          <span class="muted">${esc(s.staffName)}</span></button>`).join('') + '</div>';
+    app.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { S.detail = b.dataset.sub; render(); window.scrollTo(0, 0); });
+  };
+  const bind = (id, key, ev = 'change') => document.getElementById(id).addEventListener(ev, e => { F[key] = e.target.value; list(); });
+  bind('fq', 'q', 'input'); bind('fform', 'form'); bind('fwho', 'who'); bind('ffrom', 'from'); bind('fto', 'to');
+  list();
+}
+
+function showVal(f, v) {
+  if (f.type === 'checkbox') return v ? 'Yes' : 'No';
+  if (v === null || v === undefined || v === '') return '<span class="muted">—</span>';
+  if (BAD.includes(v)) return `<span class="pill bad" style="margin:0">${esc(v)}</span>`;
+  if (GOOD.includes(v)) return `<span class="pill good" style="margin:0">${esc(v)}</span>`;
+  return esc(v) + (f.unit ? ` <span class="muted mono">${esc(f.unit)}</span>` : '');
+}
+
+function renderDetail() {
+  const s = S.subs.find(x => x.id === S.detail);
+  if (!s) { S.detail = null; return render(); }
+  const def = S.forms.find(f => f.id === s.formId);
+  const sections = def?.sections || [{ title: 'Values', fields: Object.keys(s.values || {}).map(k => ({ id: k, label: k })) }];
+  const body = sections.map(sec => `<fieldset><legend>${esc(sec.title || '')}</legend><dl class="vals">` + (sec.fields || []).map(f => {
+    const v = s.values?.[f.id];
+    if (f.type === 'table' || Array.isArray(v)) {
+      const cols = f.columns || Object.keys(v?.[0] || {}).map(k => ({ id: k, label: k }));
+      return `</dl><div class="field"><span class="lbl">${esc(f.label)}</span>${v?.length ? `<div class="tbl-wrap"><table><thead><tr><th>#</th>${cols.map(c => `<th>${esc(c.label)}</th>`).join('')}</tr></thead><tbody>` +
+        v.map((r, i) => `<tr><td class="rownum">${i + 1}</td>${cols.map(c => `<td>${showVal(c, r[c.id])}</td>`).join('')}</tr>`).join('') + `</tbody></table></div>` : '<span class="muted">No rows entered</span>'}</div><dl class="vals">`;
+    }
+    return `<dt>${esc(f.label)}</dt><dd>${showVal(f, v)}</dd>`;
+  }).join('') + '</dl></fieldset>').join('');
+  app.innerHTML = `<div><button class="btn link" id="back">← Back to history</button></div>
+  <article class="sheet">
+    <div class="sheet-head"><div class="eyebrow">${[s.formCode, s.category].filter(Boolean).map(esc).join(' · ') || 'Submitted record'}</div>
+      <h1>${esc(s.formName)}</h1>
+      <p style="margin:0">Filled by <strong>${esc(s.staffName)}</strong> · <span class="mono">${esc(fmtWhen(s.submittedAt))}</span></p></div>
+    <div class="sheet-body">${body}
+      ${s.notes ? `<fieldset><legend>Notes</legend><p style="margin:0;white-space:pre-wrap">${esc(s.notes)}</p></fieldset>` : ''}
+    </div>
+  </article>`;
+  document.getElementById('back').onclick = () => { S.detail = null; render(); };
+}
+
+/* ---------- Staff ---------- */
+function renderStaff() {
+  app.innerHTML = `<div class="head"><div><div class="eyebrow">Staff · ${S.staff.length}</div><h1>QA team</h1></div></div>
+    <p class="muted" style="margin:0;max-width:60ch">These names appear in the “Filled by” list on every form. Staff can also type a name that isn't listed.</p>
+    ${S.canEdit ? `<form class="add" id="addStaff"><input type="text" id="newStaff" placeholder="Full name or initials" required aria-label="New staff name"><button class="btn primary">Add</button></form>` : ''}
+    ${S.staff.length ? `<div class="staff">${S.staff.map(p => `<span class="chip${S.canEdit ? '' : ' ro'}">${esc(p.name)}${S.canEdit ? `<button data-del="${esc(p.id)}" aria-label="Remove ${esc(p.name)}">✕</button>` : ''}</span>`).join('')}</div>`
+      : `<div class="notice"><h2>No staff listed yet</h2><p>${S.canEdit ? 'Add each QA team member above.' : 'The page owner adds QA team members here.'}</p></div>`}`;
+  const addForm = document.getElementById('addStaff');
+  if (addForm) addForm.onsubmit = async e => {
+    e.preventDefault();
+    const input = document.getElementById('newStaff'), name = input.value.trim();
+    if (!name) return;
+    try { S.staff = await apiCall('POST', '/api/staff', { name }); toast(`Added ${name}`); render(); document.getElementById('newStaff')?.focus(); }
+    catch (x) { toast(x.message); }
+  };
+  app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    try { await apiCall('DELETE', '/api/staff/' + encodeURIComponent(b.dataset.del)); load(); } catch (x) { toast(x.message); }
+  });
+}
+
+/* ---------- Boot ---------- */
+document.querySelectorAll('nav a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); go(a.dataset.view); }));
+addEventListener('hashchange', () => { const v = location.hash.slice(1); if (['forms', 'history', 'staff'].includes(v) && v !== S.view) go(v); });
+S.view = ['forms', 'history', 'staff'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'forms';
+document.getElementById('demoBar').hidden = !DEMO;
+render();
+load();
+</script>

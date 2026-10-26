@@ -1,0 +1,52 @@
+{
+  "name": "Receiving Log",
+  "code": "Log 001",
+  "category": "Receiving",
+  "frequency": "Each delivery",
+  "description": "By accepting the truck, the receiver has inspected the truck container for pest harborage, odors, toxic materials and all signs of physical damage, as stated in the Receiving, Shipping and Product Release Program SOP 045. Revision 10, 01/31/2023.",
+  "sections": [
+    {
+      "title": "Received items",
+      "fields": [
+        {
+          "id": "items",
+          "label": "Items received",
+          "type": "table",
+          "rows": 2,
+          "hint": "One row per item. Leave temperature, lot, expiry or seal blank when it is N/A. Temperature limits: refrigerated anaerobic product surface below 38°F, all other refrigerated below 40°F, frozen below 10°F, dry has no limit.",
+          "columns": [
+            { "id": "date", "label": "Date", "type": "date" },
+            { "id": "vendor", "label": "Vendor", "type": "text" },
+            { "id": "item", "label": "Item", "type": "text" },
+            { "id": "po", "label": "PO# or BOL#", "type": "text" },
+            { "id": "lot", "label": "Lot code", "type": "text" },
+            { "id": "exp", "label": "Exp. date", "type": "text" },
+            { "id": "amount", "label": "Amount", "type": "number" },
+            { "id": "unit", "label": "Unit", "type": "select", "options": ["cs", "ea", "lb", "bag", "pallet"] },
+            { "id": "truckTemp", "label": "Truck", "type": "number", "unit": "°F" },
+            { "id": "productTemp", "label": "Product", "type": "number", "unit": "°F" },
+            { "id": "spec", "label": "Product spec", "type": "checkbox", "checkLabel": "Meets" },
+            { "id": "accepted", "label": "Accepted / Rejected", "type": "passfail", "options": ["Accepted", "Rejected"] },
+            { "id": "storage", "label": "Storage", "type": "select", "options": ["Dry", "Cooler", "Frozen"] },
+            { "id": "seal", "label": "If FTL, seal #(s)", "type": "text" },
+            { "id": "ltl", "label": "If LTL, locked/secured", "type": "checkbox", "checkLabel": "Yes" },
+            { "id": "init", "label": "Init", "type": "text" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Corrective action",
+      "fields": [
+        { "id": "correctiveNote", "label": "Corrective action taken", "type": "textarea", "hint": "If product is out of temperature range, or other receiving policies were not followed, report findings to Management IMMEDIATELY. Determine the duration of the nonconformance and start a corrective action." }
+      ]
+    },
+    {
+      "title": "QA verification",
+      "fields": [
+        { "id": "verifiedBy", "label": "Verified by QA", "type": "text" },
+        { "id": "verifiedDate", "label": "Verification date", "type": "date" }
+      ]
+    }
+  ]
+}
