@@ -2,7 +2,7 @@
 
 Web versions of the plant's paper QA forms. QA staff pick a form, fill it on a phone, tablet or PC, and every submission is kept with who filled it and when.
 
-**Online (real records):** https://qa-forms-one.vercel.app (needs the plant access code)
+**Online (real records):** https://nwf-qa-forms.vercel.app (needs the plant access code)
 
 **Demo (not saved):** https://mahindra-nwf.github.io/qa-forms/
 
