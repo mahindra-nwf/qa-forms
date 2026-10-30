@@ -27,6 +27,11 @@ create index if not exists submissions_form_id on submissions (form_id, submitte
 alter table staff enable row level security;
 alter table submissions enable row level security;
 
+-- Browser-facing roles get nothing; only the server's secret key (service_role) is allowed in.
+revoke all on staff, submissions from anon, authenticated;
+grant select, insert, delete on staff to service_role;
+grant select, insert on submissions to service_role;
+
 -- Submitted records are permanent: no edits, no deletes, from any app key.
 create or replace function block_submission_changes() returns trigger
 language plpgsql as $$
