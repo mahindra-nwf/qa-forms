@@ -610,14 +610,7 @@ function bindFill(f) {
     // A row marked "not used" (e.g. ingredient = No) greys out its other cells and shows N/A, like the paper.
     const skipBtn = e.target.closest('tr[data-row] input[type=radio]');
     const sw = skipBtn && allFields(f).find(x => x.id === skipBtn.closest('[data-table]').dataset.table)?.skipWhen;
-    if (sw && skipBtn.name.endsWith('__' + sw.column)) {
-      const tr = skipBtn.closest('tr'), skip = skipBtn.checked && skipBtn.value === sw.value;
-      tr.classList.toggle('skipped', skip);
-      tr.querySelectorAll('input:not([type=radio]), select').forEach(i => {
-        i.disabled = skip; i.placeholder = skip ? 'N/A' : ''; if (skip) i.value = '';
-        if (i.tagName === 'SELECT') i.options[0].text = skip ? 'N/A' : 'Choose…';
-      });
-    }
+    if (sw && skipBtn.name.endsWith('__' + sw.column)) applySkip(skipBtn.closest('tr'), skipBtn.checked && skipBtn.value === sw.value);
     const m = e.target.closest('.mark');
     if (m) { setMark(m, { '': 'OK', OK: 'Issue', Issue: '' }[m.nextElementSibling.value]); return; }
     // Tapping a selected A/R box again clears it, like erasing a tick on paper.
@@ -663,6 +656,15 @@ function collect(form, f) {
 }
 
 // Put collected entries back after switching layouts, so nothing typed is lost.
+// Greys out a "not used" row (e.g. ingredient = No) and shows N/A in its other cells.
+function applySkip(tr, skip) {
+  tr.classList.toggle('skipped', skip);
+  tr.querySelectorAll('input:not([type=radio]), select').forEach(i => {
+    i.disabled = skip; i.placeholder = skip ? 'N/A' : ''; if (skip) i.value = '';
+    if (i.tagName === 'SELECT') i.options[0].text = skip ? 'N/A' : 'Choose…';
+  });
+}
+
 function restore(form, f, { staffName, values, notes }) {
   const put = (name, v) => { const el = form.elements[name]; if (!el) return;
     if (el.type === 'checkbox') el.checked = !!v; else el.value = v ?? ''; };
@@ -680,10 +682,17 @@ function restore(form, f, { staffName, values, notes }) {
     }
     if (fld.type !== 'table') { put(fld.id, values[fld.id]); continue; }
     const tb = form.querySelector(`[data-table="${CSS.escape(fld.id)}"]`);
+    // Fixed rows (checks, ingredients) are saved without their blank rows, so match them by label, not position.
+    const fixed = [...tb.querySelectorAll('[data-row]')];
     (values[fld.id] || []).forEach((row, i) => {
-      if (!tb.querySelectorAll('[data-row]')[i]) tb.insertAdjacentHTML('beforeend', tableRow(fld, S.rowSeq++));
-      const k = tb.querySelectorAll('[data-row]')[i].dataset.row;
-      fld.columns.forEach(c => put(`${fld.id}__${k}__${c.id}`, row[c.id]));
+      let tr = fld.fixedRows ? fixed.find(r => r.dataset.label === row.row) : tb.querySelectorAll('[data-row]')[i];
+      if (!tr) {
+        if (fld.fixedRows) return;
+        tb.insertAdjacentHTML('beforeend', tableRow(fld, S.rowSeq++));
+        tr = tb.querySelectorAll('[data-row]')[i];
+      }
+      fld.columns.forEach(c => put(`${fld.id}__${tr.dataset.row}__${c.id}`, row[c.id]));
+      if (fld.skipWhen) applySkip(tr, row[fld.skipWhen.column] === fld.skipWhen.value);
     });
   }
   numberRows();
@@ -736,10 +745,13 @@ const leaves = v => v && typeof v === 'object' ? Object.values(v).flatMap(leaves
 const hasFail = s => leaves(s.values).some(v => BAD.includes(v));
 const BAD = ['Fail', 'Rejected', 'Reject', 'Issue', 'Unsatisfactory'], GOOD = ['Pass', 'Accepted', 'Accept'];
 
+// The day a record belongs to in the plant's local time (submittedAt is stored in UTC).
+const localDay = iso => new Date(iso).toLocaleDateString('en-CA');
+
 function filtered() {
   const { form, who, from, to, q } = S.filter, ql = q.toLowerCase();
   return S.subs.filter(s => (!form || s.formId === form) && (!who || s.staffName === who)
-    && (!from || s.submittedAt.slice(0, 10) >= from) && (!to || s.submittedAt.slice(0, 10) <= to)
+    && (!from || localDay(s.submittedAt) >= from) && (!to || localDay(s.submittedAt) <= to)
     && (!ql || JSON.stringify([s.formName, s.formCode, s.staffName, s.notes, s.values]).toLowerCase().includes(ql)));
 }
 
@@ -796,7 +808,7 @@ function renderDetail() {
     }
     return `<dt>${esc(f.label)}</dt><dd>${showVal(f, v)}</dd>`;
   }).join('') + '</dl></fieldset>').join('');
-  app.innerHTML = `<div><button class="btn link" id="back">← Back to history</button></div>
+  app.innerHTML = `<div><button class="btn link" id="back">← Back</button></div>
   <article class="sheet">
     <div class="sheet-head"><div class="eyebrow">${[s.formCode, s.category].filter(Boolean).map(esc).join(' · ') || 'Submitted record'}</div>
       <h1>${esc(s.formName)}</h1>

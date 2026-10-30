@@ -104,6 +104,13 @@ test('PINs on: names are hidden, sign in by name and PIN, 5 wrong tries lock it'
   assert.match((await locked.json()).error, /30 minutes/);
 });
 
+test('switching PINs on never reopens first-admin setup', async () => {
+  T.staff.push({ id: 'ad', name: 'Ana', role: 'admin' }); // admin made while PINs were off, no PIN yet
+  process.env.REQUIRE_PIN = 'true';
+  assert.equal((await (await session.GET(req('GET', '/api/session'))).json()).needsSetup, false);
+  assert.equal((await session.POST(req('POST', '/api/session', { action: 'setup', name: 'Eve', pin: '246802' }))).status, 403);
+});
+
 test('PINs on: new PINs need 6 digits, setup needs one', async () => {
   process.env.REQUIRE_PIN = 'true';
   assert.equal((await session.POST(req('POST', '/api/session', { action: 'setup', name: 'Ana' }))).status, 400);

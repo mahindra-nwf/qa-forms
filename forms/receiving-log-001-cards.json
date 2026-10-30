@@ -28,8 +28,8 @@
             { "id": "spec", "label": "Product spec", "type": "checkbox", "checkLabel": "Meets" },
             { "id": "accepted", "label": "Accepted / Rejected", "type": "passfail", "options": ["Accepted", "Rejected"] },
             { "id": "storage", "label": "Storage", "type": "select", "options": ["Dry", "Cooler", "Frozen"] },
-            { "id": "seal", "label": "If FTL, seal #(s)", "type": "text" },
-            { "id": "ltl", "label": "If LTL, locked/secured", "type": "checkbox", "checkLabel": "Yes" },
+            { "id": "seal", "label": "FTL seal #(s)", "type": "text" },
+            { "id": "ltl", "label": "LTL secured", "type": "checkbox", "checkLabel": "Yes" },
             { "id": "init", "label": "Init", "type": "text" }
           ]
         }

@@ -1,8 +1,9 @@
 import { db, handle, HttpError, json, newId, readBody } from './_lib.mjs';
 import { currentUser, hashPin, login, loginById, makeToken, pinRequired, validPin } from './_auth.mjs';
 
-const hasAdmin = async () =>
-  (await db('GET', `staff?select=id&role=eq.admin${pinRequired() ? '&pin_hash=not.is.null' : ''}&limit=1`)).length > 0;
+// Setup is open only while nobody is an admin. An admin without a PIN still counts, so switching
+// PINs on can never reopen setup to a stranger (give admins a PIN first; see README).
+const hasAdmin = async () => (await db('GET', 'staff?select=id&role=eq.admin&limit=1')).length > 0;
 
 // Who is signed in on this device. With PINs off the sign-in screen lists everyone to tap;
 // with PINs on, names are never listed.
