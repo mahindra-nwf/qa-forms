@@ -34,7 +34,7 @@ grant select, insert on submissions to service_role;
 
 -- Submitted records are permanent: no edits, no deletes, from any app key.
 create or replace function block_submission_changes() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = '' as $$
 begin
   raise exception 'Submitted QA records cannot be changed or deleted';
 end $$;
