@@ -245,7 +245,20 @@ dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .add { display: flex; gap: 8px; max-width: 420px; }
 .who { display: flex; align-items: center; gap: 8px; font-size: .9rem; }
 .who[hidden] { display: none; }
-@media (max-width: 960px) { .brand small { display: none; } .top-in { gap: 10px; } nav a { padding: 6px 9px; } }
+.net { display: inline-flex; align-items: center; gap: 6px; font-size: .82rem; font-weight: 600; border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; white-space: nowrap; background: var(--surface); cursor: default; }
+.net::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.net.on { color: var(--good); }
+.net.off { color: var(--bad); background: var(--bad-soft); border-color: var(--bad); }
+.net.off::before { background: none; border: 2px solid currentColor; width: 5px; height: 5px; }
+.net.wait { color: var(--accent); background: var(--accent-soft); }
+.net.busy::before { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .2; } }
+.draft-note { font-size: .85rem; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.outbox { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 12px 16px; display: grid; gap: 6px; }
+.outbox h2 { font-size: 1rem; margin: 0; }
+.outbox ul { margin: 0; padding-left: 18px; }
+@media (max-width: 960px) { .brand small, .who .role { display: none; } .top-in { gap: 10px; } nav a { padding: 6px 9px; } }
+@media (max-width: 800px) { .top-in { gap: 6px; } nav a { padding: 6px 6px; } .brand { font-size: 1.1rem; } .net { padding: 3px 8px; } }
 .who b { font-weight: 600; }
 .role { font-family: var(--mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
 .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
@@ -272,6 +285,7 @@ dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
       <a href="#history" data-view="history">History</a>
       <a href="#staff" data-view="staff">Staff</a>
     </nav>
+    <span class="net on" id="net" role="status" aria-live="polite">Online</span>
     <span class="who" id="who" hidden></span>
     <button class="btn theme" id="themeBtn" type="button"></button>
   </div>
@@ -329,7 +343,10 @@ async function demoApi(method, url, body) {
 
 async function apiCall(method, url, body) {
   if (DEMO) return demoApi(method, url, body);
-  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-Access-Code': ls.get('qa-code'), 'X-Session': ls.get('qa-session') }, body: body && JSON.stringify(body) });
+  let r;
+  try { r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-Access-Code': ls.get('qa-code'), 'X-Session': ls.get('qa-session') }, body: body && JSON.stringify(body) }); }
+  catch { setNet(false); throw Object.assign(new Error('No internet connection.'), { offline: true }); }
+  setNet(true);
   const data = await r.json().catch(() => ({}));
   if (r.status === 401 && data.code === 'signin') { endSession(); if (!S.fill) render(); throw new Error('Please sign in again.'); }
   if (r.status === 401 && data.code === 'locked') { S.locked = true; if (!S.fill) render(); throw new Error('Enter the plant access code.'); }
@@ -347,7 +364,16 @@ async function load() {
     S.offline = false; S.locked = false; S.ready = true;
     S.testMode = !!(await apiCall('GET', '/api/mode').catch(() => ({}))).allowChanges;
     document.getElementById('testBar').hidden = !S.testMode;
-  } catch { if (!S.locked) S.offline = true; }
+    if (S.auth) saveCache();
+    syncOutbox();
+  } catch {
+    // No connection: carry on with what this iPad saved last time, so forms can still be filled.
+    const c = !S.locked && !S.net && readCache();
+    if (c) {
+      Object.assign(S, { auth: true, me: c.me, forms: c.forms, staff: c.staff, subs: c.subs, testMode: c.testMode, ready: true, offline: false });
+      document.getElementById('testBar').hidden = !S.testMode;
+    } else if (!S.locked) S.offline = true;
+  }
   if (!S.fill) render();
 }
 
@@ -534,6 +560,11 @@ function renderPaper(f) {
 function openFill(id) {
   const f = S.forms.find(x => x.id === id); if (!f) return;
   S.fill = f; render(); window.scrollTo(0, 0);
+  const d = !S.editing && readDraft(f);
+  if (!d) return;
+  restore(document.getElementById('sheet'), f, d);
+  document.querySelector('.fill-top').insertAdjacentHTML('beforeend', `<span class="draft-note" id="draftNote">Restored what was entered at ${esc(new Date(d.savedAt).toLocaleTimeString([], { timeStyle: 'short' }))}<button class="btn link" type="button" id="discard">Start over</button></span>`);
+  document.getElementById('discard').onclick = () => { if (confirm('Clear everything entered on this form?')) { dropDraft(f); openFill(id); } };
 }
 
 function renderFill() {
@@ -598,6 +629,7 @@ function bindFill(f) {
     else { document.getElementsByName(r.name).forEach(x => delete x.dataset.was); r.dataset.was = '1'; }
   });
   document.getElementById('sheet').onsubmit = submitFill;
+  if (!S.editing) ['input', 'change', 'click'].forEach(ev => document.getElementById('sheet').addEventListener(ev, () => saveDraftSoon(f)));
 }
 
 const allFields = f => (f.sections || []).flatMap(s => s.fields || []);
@@ -674,6 +706,19 @@ async function submitFill(e) {
   }
   const f = S.fill, { staffName, values, notes } = collect(form, f);
   const btn = document.getElementById('submitBtn'); btn.disabled = true; err.textContent = '';
+  if (!S.editing && S.auth) {
+    // Online version: the record goes into this iPad's outbox first, so nothing is lost if the
+    // connection drops, then it is sent. If there is no connection it is sent automatically later.
+    const item = { clientId: crypto.randomUUID(), formId: f.id, formName: f.name, formCode: f.code || '', values, notes,
+      filledAt: new Date().toISOString(), staffId: S.me.id, staffName: S.me.name, token: ls.get('qa-session') };
+    setOutbox([...getOutbox(), item]);
+    dropDraft(f); clearInterval(S.clock);
+    await syncOutbox();
+    const waiting = getOutbox().find(x => x.clientId === item.clientId);
+    toast(!waiting ? `${f.name} submitted` : waiting.error ? `Saved on this iPad, not sent: ${waiting.error}` : 'No connection. Saved on this iPad and will be sent automatically.');
+    go('forms');
+    return;
+  }
   try {
     const editing = S.editing;
     if (editing) await apiCall('PATCH', '/api/submissions/' + encodeURIComponent(editing.id), { staffName, values, notes });
@@ -712,6 +757,7 @@ function renderHistory() {
       <label>From<input type="date" id="ffrom" value="${esc(F.from)}"></label>
       <label>To<input type="date" id="fto" value="${esc(F.to)}"></label>
     </div>
+    ${outboxHtml()}
     <div id="list"></div>`;
   const list = () => {
     const rows = filtered();
@@ -756,7 +802,7 @@ function renderDetail() {
   <article class="sheet">
     <div class="sheet-head"><div class="eyebrow">${[s.formCode, s.category].filter(Boolean).map(esc).join(' · ') || 'Submitted record'}</div>
       <h1>${esc(s.formName)}</h1>
-      <p style="margin:0">Filled by <strong>${esc(s.staffName)}</strong> · <span class="mono">${esc(fmtWhen(s.submittedAt))}</span>${s.editedAt ? ` · <span class="muted">Edited ${esc(fmtWhen(s.editedAt))}${s.editedBy ? ` by ${esc(s.editedBy)}` : ''}</span>` : ''}</p>
+      <p style="margin:0">Filled by <strong>${esc(s.staffName)}</strong> · <span class="mono">${esc(fmtWhen(s.submittedAt))}</span>${s.filledAt && Math.abs(new Date(s.submittedAt) - new Date(s.filledAt)) > 120e3 ? ` · <span class="muted">filled offline at ${esc(fmtWhen(s.filledAt))} (iPad clock)</span>` : ''}${s.editedAt ? ` · <span class="muted">Edited ${esc(fmtWhen(s.editedAt))}${s.editedBy ? ` by ${esc(s.editedBy)}` : ''}</span>` : ''}</p>
       ${S.testMode && def && canChange() ? `<div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="editSub">Edit</button><button class="btn" id="delSub">Delete</button></div>` : ''}</div>
     <div class="sheet-body">${body}
       ${s.notes ? `<fieldset><legend>Notes</legend><p style="margin:0;white-space:pre-wrap">${esc(s.notes)}</p></fieldset>` : ''}
@@ -845,6 +891,83 @@ function renderStaff() {
   });
 }
 
+/* ---------- Working offline (online version) ---------- */
+// Drafts: everything typed is saved on this iPad a moment later, per person and per form.
+// Outbox: submitted records wait here until the server confirms them; each has a clientId so a
+// record sent twice (connection dropped mid-send) is saved once. Kept in localStorage on this iPad.
+const store2 = { get: (k, d) => { try { return JSON.parse(ls.get(k)) ?? d; } catch { return d; } }, set: (k, v) => ls.set(k, JSON.stringify(v)) };
+const draftKey = f => `qa-draft:${S.me?.id || 'device'}:${f.id}`;
+const readDraft = f => store2.get(draftKey(f), null);
+const dropDraft = f => { clearTimeout(S.draftT); try { localStorage.removeItem(draftKey(f)); } catch {} };
+function saveDraftSoon(f) {
+  clearTimeout(S.draftT);
+  S.draftT = setTimeout(() => {
+    const sheet = document.getElementById('sheet');
+    if (!sheet || S.fill !== f || S.editing) return;
+    store2.set(draftKey(f), { ...collect(sheet, f), savedAt: Date.now() });
+  }, 400);
+}
+
+const getOutbox = () => store2.get('qa-outbox', []);
+const setOutbox = list => { store2.set('qa-outbox', list); renderNet(); };
+
+function saveCache() {
+  store2.set('qa-cache', { me: S.me, forms: S.forms, staff: S.staff, subs: S.subs.slice(0, 200), testMode: S.testMode, at: Date.now() });
+}
+const readCache = () => { const c = store2.get('qa-cache', null); return c?.me && c.forms?.length ? c : null; };
+
+S.net = navigator.onLine;
+function setNet(on) { if (S.net !== on) { S.net = on; renderNet(); } }
+function renderNet() {
+  const el = document.getElementById('net');
+  if (!S.auth) { el.hidden = true; return; }
+  const n = getOutbox().length, failed = getOutbox().filter(x => x.error).length;
+  const [cls, text, tip] = S.syncing ? ['wait busy', 'Sending…', 'Sending saved records to the server.']
+    : !S.net ? ['off', n ? `Offline · ${n} saved` : 'Offline', 'No internet. Forms are saved on this iPad and sent when the connection is back.']
+    : failed ? ['off', `${failed} not sent`, 'Some saved records could not be sent. Open History for details.']
+    : n ? ['wait', `${n} to send`, 'Saved records will be sent in a moment.']
+    : ['on', 'Online', 'Connected. Records are saved to the server.'];
+  el.hidden = false; el.className = 'net ' + cls; el.textContent = text; el.title = tip;
+}
+
+async function syncOutbox() {
+  if (S.syncing || DEMO || !S.auth) return;
+  let list = getOutbox();
+  if (!list.length) return renderNet();
+  S.syncing = true; renderNet();
+  let sent = 0;
+  for (const item of list) {
+    // Send as the person who filled it. Use their current sign-in if they are the one signed in now.
+    const token = S.me?.id === item.staffId ? ls.get('qa-session') : item.token;
+    let r, data;
+    try {
+      r = await fetch('/api/submissions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Access-Code': ls.get('qa-code'), 'X-Session': token },
+        body: JSON.stringify({ formId: item.formId, values: item.values, notes: item.notes, clientId: item.clientId, filledAt: item.filledAt }) });
+      data = await r.json().catch(() => ({}));
+    } catch { setNet(false); break; }
+    setNet(true);
+    if (r.ok) { list = getOutbox().filter(x => x.clientId !== item.clientId); store2.set('qa-outbox', list); sent++; continue; }
+    // Kept on the iPad until it can be sent; the reason shows in History.
+    const error = r.status === 401 ? (data.code === 'locked' ? 'Access code needed' : `${item.staffName} needs to sign in again`) : data.error || `Server error ${r.status}`;
+    store2.set('qa-outbox', getOutbox().map(x => x.clientId === item.clientId ? { ...x, error } : x));
+    if (r.status === 401 && data.code === 'locked') break;
+  }
+  S.syncing = false; renderNet();
+  if (sent && S.me && !S.fill) { toast(`${sent} saved record${sent === 1 ? '' : 's'} sent`); load(); }
+}
+
+function outboxHtml() {
+  const list = getOutbox();
+  if (!list.length) return '';
+  return `<div class="outbox"><h2>Saved on this iPad, waiting to send (${list.length})</h2>
+    <p class="muted" style="margin:0">These are sent automatically when the iPad is online. Don't clear Safari's website data until they are sent.</p>
+    <ul>${list.map(x => `<li><strong>${esc(x.formCode ? x.formCode + ' · ' : '')}${esc(x.formName)}</strong> by ${esc(x.staffName)}, filled ${esc(fmtWhen(x.filledAt))}${x.error ? ` <span class="pill bad">${esc(x.error)}</span>` : ''}</li>`).join('')}</ul></div>`;
+}
+
+addEventListener('online', () => { setNet(true); syncOutbox(); if (!S.fill) load(); });
+addEventListener('offline', () => setNet(false));
+setInterval(() => { if (getOutbox().length) syncOutbox(); }, 20e3);
+
 /* ---------- Staff sign-in (online version) ---------- */
 const ROLE_NAME = { operator: 'Operator', qa: 'QA', admin: 'Admin' };
 const IDLE_MS = 5 * 60e3;
@@ -853,12 +976,14 @@ const canChange = () => !S.auth || ['qa', 'admin'].includes(S.me?.role);
 const touch = () => ls.set('qa-active', String(Date.now()));
 
 function endSession() {
+  const c = readCache(); if (c) ls.set('qa-cache', JSON.stringify({ ...c, me: null }));
   ls.set('qa-session', ''); S.me = null; S.fill = null; S.detail = null; S.editing = null; S.subs = []; S.pick = null;
   clearInterval(S.clock);
 }
 function signOut(msg) { endSession(); go('forms'); if (msg) toast(msg); }
 
 function renderWho() {
+  renderNet();
   document.getElementById('dashLink').hidden = !isAdmin();
   const el = document.getElementById('who');
   el.hidden = !S.me;
@@ -974,9 +1099,14 @@ addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIE
 S.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'forms';
 document.getElementById('demoBar').hidden = !DEMO;
 // Light by default; the choice is remembered on this device.
-const applyTheme = t => { document.documentElement.dataset.theme = t; document.getElementById('themeBtn').textContent = t === 'dark' ? '☀ Light' : '☾ Dark'; };
+const applyTheme = t => {
+  const b = document.getElementById('themeBtn'), label = t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  document.documentElement.dataset.theme = t; b.textContent = t === 'dark' ? '☀' : '☾'; b.title = label; b.setAttribute('aria-label', label);
+};
 applyTheme(ls.get('qa-theme') || 'light');
 document.getElementById('themeBtn').onclick = () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; ls.set('qa-theme', t); applyTheme(t); };
 render();
+renderNet();
 load();
+if ('serviceWorker' in navigator && !DEMO) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>

@@ -37,6 +37,15 @@ Never put the secret key anywhere except Vercel's environment variables.
 
 The plant network version and the demo have no sign-in; names are typed as before.
 
+### Working without internet (online version)
+
+- The badge in the top bar shows **Online**, **Offline**, **N to send** or **Sending…**.
+- Everything typed on a form is saved on the iPad as you go. Reopening the form brings it back.
+- **Submit** always saves the record on the iPad first, then sends it. With no connection it waits and is sent automatically when the iPad is back online (checked every 20 seconds and as soon as Wi-Fi returns). Each record has an ID made on the iPad, so a record sent twice is saved once.
+- Records keep both times: when Submit was pressed on the iPad (filled_at, iPad clock) and when the server received it (submitted_at, server clock).
+- The page opens offline using the last copy saved on the iPad. Signing in needs internet; someone already signed in can keep working.
+- Records waiting to send are listed at the top of **History**. They live in Safari on that iPad, so do not clear Safari website data or use Private Browsing until they are sent.
+
 **Test mode is on.** While testing, records can be edited and deleted (a banner says so). Before real use, run this in Supabase **SQL Editor** to lock records permanently:
 
 ```sql

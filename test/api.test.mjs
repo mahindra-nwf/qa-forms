@@ -102,6 +102,26 @@ test('Filled by comes from the signed-in person, not the device', async () => {
   assert.equal(T.submissions[0].submitted_at.startsWith('1999'), false);
 });
 
+test('a record sent twice after a dropped connection is saved once, with the iPad time kept', async () => {
+  const token = person('bo', 'operator');
+  const body = { formId: 'receiving-log-001-cards', values: { t: 1 }, clientId: 'c0ffee00-1111-2222', filledAt: '2026-10-30T09:00:00.000Z' };
+  const first = await subs.POST(req('POST', '/api/submissions', body, { token }));
+  const again = await subs.POST(req('POST', '/api/submissions', body, { token }));
+  assert.equal(first.status, 201);
+  assert.equal(again.status, 200);
+  assert.equal(T.submissions.length, 1);
+  assert.equal((await again.json()).id, T.submissions[0].id);
+  assert.equal(T.submissions[0].filled_at, '2026-10-30T09:00:00.000Z');
+  assert.notEqual(T.submissions[0].submitted_at, T.submissions[0].filled_at, 'receipt time is the server clock');
+});
+
+test('a bad clientId or filledAt is ignored, not trusted', async () => {
+  const token = person('bo', 'operator');
+  await subs.POST(req('POST', '/api/submissions', { formId: 'receiving-log-001-cards', clientId: 'x;drop', filledAt: 'soon' }, { token }));
+  assert.equal(T.submissions[0].client_id, null);
+  assert.equal(T.submissions[0].filled_at, null);
+});
+
 test('submitting needs a signed-in person and a real form', async () => {
   assert.equal((await subs.POST(req('POST', '/api/submissions', { formId: 'receiving-log-001-cards' }))).status, 401);
   const token = person('bo', 'operator');
