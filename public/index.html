@@ -217,6 +217,20 @@ table.matrix { table-layout: fixed; width: 100%; border-collapse: collapse; font
 .pill { display: inline-block; font-size: .75rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; margin-left: 6px; }
 .pill.bad { background: var(--bad-soft); color: var(--bad); }
 .pill.good { background: var(--good-soft); color: var(--good); }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { all: unset; box-sizing: border-box; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 14px 16px; display: grid; gap: 2px; }
+button.tile { cursor: pointer; } button.tile:hover { border-color: var(--accent); }
+button.tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tile b { font-family: var(--display); font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile span { color: var(--muted); font-size: .9rem; }
+.tile.warn b { color: var(--bad); }
+.dash h2 { font-size: 1.15rem; margin: 0 0 8px; }
+.dash section { display: grid; gap: 0; }
+.status { font-weight: 600; font-size: .9rem; white-space: nowrap; }
+.status.done { color: var(--good); } .status.todo { color: var(--bad); }
+.counts { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.counts > * { background: var(--surface); padding: 10px 16px; }
+.counts > :nth-child(even) { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
 dl.vals { display: grid; grid-template-columns: minmax(120px, 34%) 1fr; gap: 8px 16px; margin: 0; }
 dl.vals dt { color: var(--muted); font-weight: 600; font-size: .92rem; }
 dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
@@ -231,6 +245,7 @@ dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .add { display: flex; gap: 8px; max-width: 420px; }
 .who { display: flex; align-items: center; gap: 8px; font-size: .9rem; }
 .who[hidden] { display: none; }
+@media (max-width: 960px) { .brand small { display: none; } .top-in { gap: 10px; } nav a { padding: 6px 9px; } }
 .who b { font-weight: 600; }
 .role { font-family: var(--mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
 .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
@@ -253,6 +268,7 @@ dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
     <div class="brand">Plant QA Forms<small>Quality records</small></div>
     <nav>
       <a href="#forms" data-view="forms">Forms</a>
+      <a href="#dashboard" data-view="dashboard" id="dashLink" hidden>Dashboard</a>
       <a href="#history" data-view="history">History</a>
       <a href="#staff" data-view="staff">Staff</a>
     </nav>
@@ -345,7 +361,8 @@ function render() {
   if (S.auth && !S.me) return renderSignin();
   if (S.fill) return renderFill();
   if (S.detail) return renderDetail();
-  ({ forms: renderForms, history: renderHistory, staff: renderStaff }[S.view] || renderForms)();
+  if (S.view === 'dashboard' && !isAdmin()) S.view = 'forms';
+  ({ forms: renderForms, dashboard: renderDashboard, history: renderHistory, staff: renderStaff }[S.view] || renderForms)();
 }
 
 /* ---------- Forms list ---------- */
@@ -760,6 +777,53 @@ function renderDetail() {
   };
 }
 
+/* ---------- Admin dashboard (online version) ---------- */
+// Everything here is counted from the records already loaded; nothing is estimated.
+function renderDashboard() {
+  const day = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const today = day(Date.now()), weekAgo = new Date(today - 6 * 864e5);
+  const at = s => new Date(s.submittedAt);
+  const todays = S.subs.filter(s => at(s) >= today), week = S.subs.filter(s => at(s) >= weekAgo);
+  const flagged = week.filter(hasFail), noPin = S.staff.filter(p => !p.hasPin);
+  const daily = S.forms.filter(f => /daily/i.test(f.frequency || ''));
+  const latest = id => S.subs.find(s => s.formId === id);
+  const byPerson = [...week.reduce((m, s) => m.set(s.staffName, (m.get(s.staffName) || 0) + 1), new Map())].sort((a, b) => b[1] - a[1]);
+  const row = s => `<button class="sub" data-sub="${esc(s.id)}">
+      <span>${s.formCode ? `<span class="mono muted">${esc(s.formCode)}</span> · ` : ''}<strong>${esc(s.formName)}</strong>${hasFail(s) ? '<span class="pill bad">Needs attention</span>' : ''}</span>
+      <span class="when">${esc(fmtWhen(s.submittedAt))}</span><span class="muted">${esc(s.staffName)}</span></button>`;
+  const list = (rows, empty) => rows.length ? `<div class="subs">${rows.map(row).join('')}</div>` : `<p class="muted" style="margin:0">${empty}</p>`;
+
+  app.innerHTML = `<div class="head"><div><div class="eyebrow">Admin · ${esc(today.toLocaleDateString([], { dateStyle: 'full' }))}</div><h1>Dashboard</h1></div>
+      <button class="btn" id="refresh" type="button">Refresh</button></div>
+    <div class="dash" style="display:grid;gap:28px">
+    <div class="tiles">
+      <div class="tile"><b>${todays.length}</b><span>Records today</span></div>
+      <div class="tile"><b>${week.length}</b><span>Last 7 days</span></div>
+      <button class="tile${flagged.length ? ' warn' : ''}" data-go="flagged"><b>${flagged.length}</b><span>Need attention (7 days)</span></button>
+      <button class="tile${noPin.length ? ' warn' : ''}" data-go="staff"><b>${noPin.length}</b><span>Staff without a PIN</span></button>
+    </div>
+    ${daily.length ? `<section><h2>Daily forms today</h2><div class="subs">${daily.map(f => {
+      const l = latest(f.id), done = l && at(l) >= today;
+      return `<button class="sub" ${l ? `data-sub="${esc(l.id)}"` : 'disabled'}>
+        <span>${f.code ? `<span class="mono muted">${esc(f.code)}</span> · ` : ''}<strong>${esc(f.name)}</strong></span>
+        <span class="status ${done ? 'done' : 'todo'}">${done ? '✓ Done' : '✱ Not filled yet'}</span>
+        <span class="muted">${done ? `${esc(l.staffName)} at ${esc(new Date(l.submittedAt).toLocaleTimeString([], { timeStyle: 'short' }))}` : l ? `Last filled ${esc(fmtWhen(l.submittedAt))}` : 'Never filled'}</span></button>`;
+    }).join('')}</div></section>` : ''}
+    <section id="flagged"><h2>Needs attention · last 7 days</h2>${list(flagged, 'Nothing marked Fail, Reject or ✱ in the last 7 days.')}</section>
+    <section><h2>Records by person · last 7 days</h2>${byPerson.length
+      ? `<div class="counts">${byPerson.map(([n, c]) => `<span>${esc(n)}</span><span>${c}</span>`).join('')}</div>`
+      : '<p class="muted" style="margin:0">No records in the last 7 days.</p>'}</section>
+    <section><h2>Latest records</h2>${list(S.subs.slice(0, 8), 'No records yet.')}</section>
+    <section><h2>Record lock</h2><p style="margin:0;max-width:65ch">${S.testMode
+      ? '<span class="pill bad" style="margin:0 6px 0 0">Test mode on</span>QA and admins can edit and delete records. Before real use, run <code>update app_settings set allow_record_changes = false;</code> in the Supabase SQL Editor.'
+      : '<span class="pill good" style="margin:0 6px 0 0">Locked</span>Submitted records cannot be edited or deleted.'}</p></section>
+    </div>`;
+  app.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => { S.detail = b.dataset.sub; render(); window.scrollTo(0, 0); });
+  app.querySelector('[data-go="staff"]').onclick = () => go('staff');
+  app.querySelector('[data-go="flagged"]').onclick = () => document.getElementById('flagged').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('refresh').onclick = () => load();
+}
+
 /* ---------- Staff ---------- */
 function renderStaff() {
   if (S.auth) return renderTeam();
@@ -784,6 +848,7 @@ function renderStaff() {
 /* ---------- Staff sign-in (online version) ---------- */
 const ROLE_NAME = { operator: 'Operator', qa: 'QA', admin: 'Admin' };
 const IDLE_MS = 5 * 60e3;
+const isAdmin = () => S.me?.role === 'admin';
 const canChange = () => !S.auth || ['qa', 'admin'].includes(S.me?.role);
 const touch = () => ls.set('qa-active', String(Date.now()));
 
@@ -794,6 +859,7 @@ function endSession() {
 function signOut(msg) { endSession(); go('forms'); if (msg) toast(msg); }
 
 function renderWho() {
+  document.getElementById('dashLink').hidden = !isAdmin();
   const el = document.getElementById('who');
   el.hidden = !S.me;
   if (!S.me) return;
@@ -902,12 +968,13 @@ function renderLock() {
 }
 
 /* ---------- Boot ---------- */
+const VIEWS = ['forms', 'dashboard', 'history', 'staff'];
 document.querySelectorAll('nav a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); go(a.dataset.view); }));
-addEventListener('hashchange', () => { const v = location.hash.slice(1); if (['forms', 'history', 'staff'].includes(v) && v !== S.view) go(v); });
-S.view = ['forms', 'history', 'staff'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'forms';
+addEventListener('hashchange', () => { const v = location.hash.slice(1); if (VIEWS.includes(v) && v !== S.view) go(v); });
+S.view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'forms';
 document.getElementById('demoBar').hidden = !DEMO;
 // Light by default; the choice is remembered on this device.
-const applyTheme = t => { document.documentElement.dataset.theme = t; document.getElementById('themeBtn').textContent = t === 'dark' ? 'Light mode' : 'Dark mode'; };
+const applyTheme = t => { document.documentElement.dataset.theme = t; document.getElementById('themeBtn').textContent = t === 'dark' ? '☀ Light' : '☾ Dark'; };
 applyTheme(ls.get('qa-theme') || 'light');
 document.getElementById('themeBtn').onclick = () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; ls.set('qa-theme', t); applyTheme(t); };
 render();
