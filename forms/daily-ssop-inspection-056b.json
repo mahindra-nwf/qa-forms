@@ -1,0 +1,132 @@
+{
+  "name": "Daily SSOP Inspection (USDA)",
+  "code": "Log 056-B",
+  "category": "Sanitation",
+  "frequency": "Daily",
+  "description": "Instructions: QA Technician inspects USDA processing areas for the following items. Correct and document nonconformities. Report recurring issues to management. Revision 14, 07/21/2025.",
+  "sections": [
+    {
+      "title": "1. Pre-operational",
+      "fields": [
+        {
+          "id": "preop",
+          "label": "Inspection items",
+          "type": "table",
+          "rowHeader": "Item",
+          "fixedRows": [
+            "a. Inspect equipment, FCS, and utensils for cleanliness.",
+            "b. Inspect utensils and containers for cracks or chips.",
+            "c. Inspect floors, walls, doors, and ceilings for cleanliness.",
+            "d. Verify accuracy of monitoring equipment/devices (X-ray, scales, O2 is turn on)."
+          ],
+          "columns": [
+            {
+              "id": "result",
+              "label": "Accept / Reject",
+              "type": "passfail",
+              "options": [
+                "Accept",
+                "Reject"
+              ],
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "preopNotes",
+          "label": "Notes / corrective actions",
+          "type": "textarea"
+        },
+        {
+          "id": "preopDate",
+          "label": "Date",
+          "type": "date",
+          "required": true,
+          "default": "today"
+        },
+        {
+          "id": "preopInitials",
+          "label": "Initials (passes examination)",
+          "type": "text",
+          "required": true
+        }
+      ]
+    },
+    {
+      "title": "2. Operational",
+      "fields": [
+        {
+          "id": "operational",
+          "label": "Inspection items",
+          "type": "table",
+          "rowHeader": "Item",
+          "fixedRows": [
+            "a. Handwashing: Employees washing hands before entering work area. Sink is working. Soap, paper towels, hand sanitizer full.",
+            "b. GMP: PPE being worn and changed properly. No jewelry being worn.",
+            "c. Ingredients, WIP, and finished products are properly labeled and stored/used within time constraint. Ingredients and WIP are enclosed/covered when not in use.",
+            "d. Dispose trash and unused materials from area.",
+            "e. Check QUAT sanitizer strength in production room. Replace sanitizer if concentration is out of target range (200 [light green] < ppm < 400 [light green]). (< 200 [yellow], > 400 [green]).",
+            "f. Inspect utensils and containers for cracks or chips. Inspect bags of product being used. Check for seepage, tears, rips, improper opening of bags by employees, etc."
+          ],
+          "columns": [
+            {
+              "id": "result",
+              "label": "Accept / Reject",
+              "type": "passfail",
+              "options": [
+                "Accept",
+                "Reject"
+              ],
+              "required": true
+            }
+          ]
+        },
+        {
+          "id": "quatPpm",
+          "label": "e. QUAT sanitizer strength",
+          "type": "number",
+          "unit": "ppm",
+          "required": true
+        },
+        {
+          "id": "opNotes",
+          "label": "Notes / corrective actions",
+          "type": "textarea"
+        },
+        {
+          "id": "opDate",
+          "label": "Date",
+          "type": "date",
+          "required": true,
+          "default": "today"
+        },
+        {
+          "id": "opInitials",
+          "label": "Initials (passes examination)",
+          "type": "text",
+          "required": true
+        }
+      ]
+    },
+    {
+      "title": "Record review",
+      "fields": [
+        {
+          "id": "reviewInitials",
+          "label": "Reviewer initials",
+          "type": "text"
+        },
+        {
+          "id": "reviewDate",
+          "label": "Review date",
+          "type": "date"
+        },
+        {
+          "id": "reviewTime",
+          "label": "Review time",
+          "type": "time"
+        }
+      ]
+    }
+  ]
+}
