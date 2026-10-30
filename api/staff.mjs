@@ -1,5 +1,5 @@
 import { db, handle, HttpError, json, newId, readBody } from './_lib.mjs';
-import { hashPin, requireUser, ROLES, validPin } from './_auth.mjs';
+import { hashPin, pinRequired, requireUser, ROLES, validPin } from './_auth.mjs';
 
 // The PIN hash never leaves the server; the page only learns whether a PIN is set.
 const list = async () => (await db('GET', 'staff?select=id,name,role,pin_hash&order=name.asc'))
@@ -15,8 +15,9 @@ function fields(b, { create }) {
     out.role = b.role || 'operator';
     if (!ROLES.includes(out.role)) throw new HttpError(400, 'Unknown role.');
   }
-  if (create || b.pin !== undefined) {
-    if (!validPin(b.pin)) throw new HttpError(400, 'PIN must be 4 to 8 digits.');
+  // A PIN is needed only when PINs are switched on; one can still be set while they are off.
+  if ((create && pinRequired()) || b.pin) {
+    if (!validPin(b.pin)) throw new HttpError(400, 'PIN must be 6 to 8 digits.');
     Object.assign(out, { pin_hash: hashPin(b.pin), failed_attempts: 0, locked_until: null });
   }
   return out;

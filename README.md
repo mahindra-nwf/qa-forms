@@ -2,7 +2,7 @@
 
 Web versions of the plant's paper QA forms. QA staff pick a form, fill it on a phone, tablet or PC, and every submission is kept with who filled it and when.
 
-**Online (real records):** https://nwf-qa-forms.vercel.app (needs the plant access code)
+**Online (real records):** https://nwf-qa-forms.vercel.app (PINs are off while testing; see below)
 
 **Demo (not saved):** https://mahindra-nwf.github.io/qa-forms/
 
@@ -10,7 +10,7 @@ There are three ways to run it:
 
 | | Where records are saved | Who can open it |
 |---|---|---|
-| **Online (Vercel + Supabase)** | Supabase database | Anyone with the link **and** the plant access code |
+| **Online (Vercel + Supabase)** | Supabase database | Anyone with the link (tap a name to sign in) |
 | Plant network (`server.js`) | `data/` folder on the plant PC | Devices on the plant network |
 | Demo (GitHub Pages) | Only in the visitor's browser | Anyone, not official records |
 
@@ -21,18 +21,19 @@ There are three ways to run it:
 3. In the Vercel project, open **Settings > Environment Variables** and add:
    - `SUPABASE_URL`: from Supabase **Project Settings > Data API** (looks like `https://xxxx.supabase.co`)
    - `SUPABASE_SECRET_KEY`: from Supabase **Project Settings > API Keys**, the **secret** key (`sb_secret_...`)
-   - `ACCESS_CODE`: a code you choose for the plant, at least 10 characters. Staff type it once on each iPad.
-4. Redeploy (**Deployments > ... > Redeploy**). Open the Vercel link on an iPad, enter the access code, and fill a test form.
-5. The first person to open the site creates the first **Admin** account (name + PIN). That admin then adds everyone else on the **Staff** page.
+   - `REQUIRE_PIN`: leave it out while testing. Set it to `true` before real use to turn PINs on.
+4. Redeploy (**Deployments > ... > Redeploy**). Open the Vercel link on an iPad and fill a test form.
+5. The first person to open the site creates the first **Admin** account (just a name while PINs are off). That admin then adds everyone else on the **Staff** page.
 
 Never put the secret key anywhere except Vercel's environment variables.
 
 ### Staff sign-in (online version)
 
-- Each device is unlocked once with the plant access code.
-- Then each person taps their name and types their own PIN (4 to 8 digits). Their name goes on every form they submit and cannot be changed on the form.
+- **PINs are off for testing.** Each person taps their name to sign in. Anyone with the link can do this, so turn PINs on before real records are kept.
+- **To turn PINs on:** in Vercel, add the environment variable `REQUIRE_PIN` = `true`, then redeploy. The sign-in screen then lists nobody: each person types their name and their own PIN (6 to 8 digits). An admin gives everyone a PIN on the Staff page first (Reset PIN).
+- Either way, the signed-in name goes on every form they submit and cannot be changed on the form.
 - Roles: **Operator** fills forms. **QA** can also edit and delete records while test mode is on. **Admin** can also add people, change roles, reset PINs and remove people.
-- The device signs out after 5 idle minutes (never while a form is open). 5 wrong PINs in a row lock that person out for 5 minutes.
+- The device signs out after 5 idle minutes (never while a form is open). With PINs on, 5 wrong tries in a row lock that person out for 30 minutes.
 - PINs are stored only as salted hashes. A forgotten PIN is reset by an admin.
 
 The plant network version and the demo have no sign-in; names are typed as before.

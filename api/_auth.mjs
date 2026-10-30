@@ -5,9 +5,13 @@ import { db, HttpError } from './_lib.mjs';
 
 export const ROLES = ['operator', 'qa', 'admin'];
 export const SESSION_HOURS = 12;
-const MAX_TRIES = 5, LOCK_MINUTES = 5;
+const MAX_TRIES = 5, LOCK_MINUTES = 30;
 
-export const validPin = pin => /^\d{4,8}$/.test(String(pin || ''));
+// PINs are off unless REQUIRE_PIN=true is set in Vercel. Off: staff tap their name to sign in (testing).
+// On: staff type their name and PIN; new PINs need 6+ digits, older 4-5 digit PINs still sign in.
+export const pinRequired = () => process.env.REQUIRE_PIN === 'true';
+export const validPin = pin => /^\d{6,8}$/.test(String(pin || ''));
+const pinShaped = pin => /^\d{4,8}$/.test(String(pin || ''));
 
 export function hashPin(pin) {
   const salt = crypto.randomBytes(16);
@@ -57,9 +61,23 @@ export async function requireUser(req, ...roles) {
   return user;
 }
 
-export async function login(staffId, pin) {
-  const [s] = await db('GET', `staff?select=${STAFF_COLS},pin_hash,failed_attempts,locked_until&id=eq.${encodeURIComponent(staffId)}`);
-  if (!s || !s.pin_hash) throw new HttpError(401, 'Wrong name or PIN.');
+const sameName = (a, b) => String(a).trim().replace(/\s+/g, ' ').toLowerCase() === String(b).trim().replace(/\s+/g, ' ').toLowerCase();
+const WRONG = 'Wrong name or PIN.';
+
+// PINs off: sign in by tapping a name.
+export async function loginById(staffId) {
+  const [s] = await db('GET', `staff?select=${STAFF_COLS}&id=eq.${encodeURIComponent(staffId || '')}`);
+  if (!s) throw new HttpError(401, 'That person is no longer listed.');
+  return { token: makeToken(s), user: s };
+}
+
+// PINs on: staff type their name (the sign-in screen does not list anyone). A wrong name and a wrong PIN
+// give the same answer, so the site never confirms who works here.
+export async function login(name, pin) {
+  if (!pinShaped(pin)) throw new HttpError(401, WRONG);
+  const all = await db('GET', `staff?select=${STAFF_COLS},pin_hash,failed_attempts,locked_until&pin_hash=not.is.null`);
+  const s = all.find(x => sameName(x.name, name));
+  if (!s) throw new HttpError(401, WRONG);
   if (s.locked_until && new Date(s.locked_until) > new Date()) throw new HttpError(429, `Too many wrong PINs. Try again in ${LOCK_MINUTES} minutes.`);
   const filter = `staff?id=eq.${encodeURIComponent(s.id)}`;
   if (!pinMatches(pin, s.pin_hash)) {
@@ -67,7 +85,7 @@ export async function login(staffId, pin) {
     await db('PATCH', filter, tries >= MAX_TRIES
       ? { failed_attempts: 0, locked_until: new Date(Date.now() + LOCK_MINUTES * 60e3).toISOString() }
       : { failed_attempts: tries });
-    throw new HttpError(401, tries >= MAX_TRIES ? `Too many wrong PINs. Try again in ${LOCK_MINUTES} minutes.` : 'Wrong PIN.');
+    throw new HttpError(401, tries >= MAX_TRIES ? `Too many wrong PINs. Try again in ${LOCK_MINUTES} minutes.` : WRONG);
   }
   if (s.failed_attempts || s.locked_until) await db('PATCH', filter, { failed_attempts: 0, locked_until: null });
   return { token: makeToken(s), user: { id: s.id, name: s.name, role: s.role } };

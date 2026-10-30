@@ -4,7 +4,6 @@ import assert from 'node:assert/strict';
 
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'sb_secret_test';
-process.env.ACCESS_CODE = 'plant-code';
 
 const forms = await import('../api/forms.mjs');
 const staff = await import('../api/staff.mjs');
@@ -20,7 +19,7 @@ const pick = (row, select) => {
 };
 beforeEach(() => {
   T = { staff: [], submissions: [], app_settings: [{ id: 1, allow_record_changes: true }] };
-  calls = []; fail = null;
+  calls = []; fail = null; delete process.env.REQUIRE_PIN;
   globalThis.fetch = async (url, init) => {
     const u = new URL(url), table = u.pathname.split('/').pop(), body = init.body && JSON.parse(init.body);
     calls.push({ table, method: init.method, url, headers: init.headers, body });
@@ -38,19 +37,16 @@ beforeEach(() => {
   };
 });
 
-const person = (id, role, pin = '1234') => { T.staff.push({ id, name: id.toUpperCase(), role, pin_hash: hashPin(pin), failed_attempts: 0 }); return makeToken({ id }); };
-const req = (method, path, body, { code = 'plant-code', token } = {}) => new Request('https://qa.test' + path, {
-  method, headers: { 'x-access-code': code, 'content-type': 'application/json', ...(token && { 'x-session': token }) },
+const person = (id, role, pin = '135790') => { T.staff.push({ id, name: id.toUpperCase(), role, pin_hash: hashPin(pin), failed_attempts: 0 }); return makeToken({ id }); };
+const req = (method, path, body, { token } = {}) => new Request('https://qa.test' + path, {
+  method, headers: { 'content-type': 'application/json', ...(token && { 'x-session': token }) },
   body: body && JSON.stringify(body),
 });
 
-test('rejects requests without the right access code', async () => {
-  for (const code of ['', 'wrong']) {
-    const r = await subs.GET(req('GET', '/api/submissions', null, { code }));
-    assert.equal(r.status, 401);
-    assert.equal((await r.json()).code, 'locked');
-  }
-  assert.equal(calls.length, 0, 'database is never called');
+test('no site password: records still need someone signed in', async () => {
+  const r = await subs.GET(req('GET', '/api/submissions'));
+  assert.equal(r.status, 401);
+  assert.equal((await r.json()).code, 'signin');
 });
 
 test('lists the forms from forms/', async () => {
@@ -58,29 +54,65 @@ test('lists the forms from forms/', async () => {
   assert.ok(list.some(f => f.id === 'receiving-log-001-cards'));
 });
 
-test('first setup creates an admin, then is closed', async () => {
+test('PINs off: first setup needs only a name, then is closed', async () => {
   let me = await (await session.GET(req('GET', '/api/session'))).json();
   assert.equal(me.needsSetup, true);
-  const r = await session.POST(req('POST', '/api/session', { action: 'setup', name: 'Ana', pin: '2468' }));
+  assert.equal(me.pinRequired, false);
+  const r = await session.POST(req('POST', '/api/session', { action: 'setup', name: 'Ana' }));
   assert.equal(r.status, 201);
   const { token, user } = await r.json();
   assert.equal(user.role, 'admin');
-  assert.notEqual(T.staff[0].pin_hash, '2468', 'PIN is stored hashed');
+  assert.equal(T.staff[0].pin_hash, undefined);
   me = await (await session.GET(req('GET', '/api/session', null, { token }))).json();
   assert.equal(me.user.name, 'Ana');
   assert.equal(me.needsSetup, false);
-  assert.equal((await session.POST(req('POST', '/api/session', { action: 'setup', name: 'Eve', pin: '1111' }))).status, 403);
+  assert.equal((await session.POST(req('POST', '/api/session', { action: 'setup', name: 'Eve' }))).status, 403);
 });
 
-test('sign in with the right PIN; 5 wrong PINs lock the account', async () => {
-  person('bo', 'operator', '1357');
-  const ok = await session.POST(req('POST', '/api/session', { action: 'login', staffId: 'bo', pin: '1357' }));
+test('PINs off: the sign-in screen lists everyone and a tap signs in', async () => {
+  T.staff.push({ id: 'bo', name: 'Bo', role: 'operator' });
+  const me = await (await session.GET(req('GET', '/api/session'))).json();
+  assert.deepEqual(me.people.map(p => p.name), ['Bo']);
+  const ok = await session.POST(req('POST', '/api/session', { action: 'login', staffId: 'bo' }));
   assert.equal(ok.status, 200);
-  assert.ok((await ok.json()).token);
-  for (let i = 0; i < 4; i++) assert.equal((await session.POST(req('POST', '/api/session', { action: 'login', staffId: 'bo', pin: '0000' }))).status, 401);
-  assert.equal((await session.POST(req('POST', '/api/session', { action: 'login', staffId: 'bo', pin: '0000' }))).status, 401);
-  const locked = await session.POST(req('POST', '/api/session', { action: 'login', staffId: 'bo', pin: '1357' }));
+  assert.equal((await ok.json()).user.name, 'Bo');
+  assert.equal((await session.POST(req('POST', '/api/session', { action: 'login', staffId: 'gone' }))).status, 401);
+});
+
+test('PINs off: admins add people without a PIN', async () => {
+  const admin = person('ad', 'admin');
+  const r = await staff.POST(req('POST', '/api/staff', { name: 'Cy', role: 'operator' }, { token: admin }));
+  assert.equal(r.status, 201);
+});
+
+test('PINs on: names are hidden, sign in by name and PIN, 5 wrong tries lock it', async () => {
+  process.env.REQUIRE_PIN = 'true';
+  person('bo', 'operator', '135790');
+  const me = await (await session.GET(req('GET', '/api/session'))).json();
+  assert.equal(me.pinRequired, true);
+  assert.deepEqual(me.people, [], 'nobody is listed');
+  const ok = await session.POST(req('POST', '/api/session', { action: 'login', name: '  bo ', pin: '135790' }));
+  assert.equal(ok.status, 200, 'name match ignores case and spaces');
+  const unknown = await (await session.POST(req('POST', '/api/session', { action: 'login', name: 'Nobody', pin: '135790' }))).json();
+  const wrong = await session.POST(req('POST', '/api/session', { action: 'login', name: 'BO', pin: '000000' }));
+  assert.equal(wrong.status, 401);
+  assert.equal((await wrong.json()).error, unknown.error, 'a wrong name and a wrong PIN look the same');
+  assert.equal((await session.POST(req('POST', '/api/session', { action: 'login', staffId: 'bo' }))).status, 401, 'tap-to-sign-in is off');
+  for (let i = 0; i < 4; i++) await session.POST(req('POST', '/api/session', { action: 'login', name: 'BO', pin: '000000' }));
+  const locked = await session.POST(req('POST', '/api/session', { action: 'login', name: 'BO', pin: '135790' }));
   assert.equal(locked.status, 429, 'even the right PIN waits out the lock');
+  assert.match((await locked.json()).error, /30 minutes/);
+});
+
+test('PINs on: new PINs need 6 digits, setup needs one', async () => {
+  process.env.REQUIRE_PIN = 'true';
+  assert.equal((await session.POST(req('POST', '/api/session', { action: 'setup', name: 'Ana' }))).status, 400);
+  assert.equal((await session.POST(req('POST', '/api/session', { action: 'setup', name: 'Ana', pin: '2468' }))).status, 400);
+  const r = await session.POST(req('POST', '/api/session', { action: 'setup', name: 'Ana', pin: '246802' }));
+  assert.equal(r.status, 201);
+  assert.notEqual(T.staff[0].pin_hash, '246802', 'PIN is stored hashed');
+  const admin = (await r.json()).token;
+  assert.equal((await staff.POST(req('POST', '/api/staff', { name: 'Cy' }, { token: admin }))).status, 400, 'PIN required');
 });
 
 test('a forged or tampered session is refused', async () => {
@@ -153,12 +185,12 @@ test('locked records give a clear 403', async () => {
 
 test('only admins manage staff; PIN hashes never leave the server', async () => {
   const admin = person('ad', 'admin'), op = person('op', 'operator');
-  assert.equal((await staff.POST(req('POST', '/api/staff', { name: 'Cy', role: 'qa', pin: '4444' }, { token: op }))).status, 403);
-  const r = await staff.POST(req('POST', '/api/staff', { name: 'Cy', role: 'qa', pin: '4444' }, { token: admin }));
+  assert.equal((await staff.POST(req('POST', '/api/staff', { name: 'Cy', role: 'qa', pin: '444444' }, { token: op }))).status, 403);
+  const r = await staff.POST(req('POST', '/api/staff', { name: 'Cy', role: 'qa', pin: '444444' }, { token: admin }));
   assert.equal(r.status, 201);
   const list = await r.json();
   assert.ok(list.every(s => !('pin_hash' in s) && typeof s.hasPin === 'boolean'));
-  assert.equal((await staff.POST(req('POST', '/api/staff', { name: 'cy', pin: '4444' }, { token: admin }))).status, 409);
+  assert.equal((await staff.POST(req('POST', '/api/staff', { name: 'cy', pin: '444444' }, { token: admin }))).status, 409);
   assert.equal((await staff.POST(req('POST', '/api/staff', { name: 'Dee', pin: '12' }, { token: admin }))).status, 400, 'short PIN');
   assert.equal((await staff.PATCH(req('PATCH', '/api/staff?id=ad', { role: 'operator' }, { token: admin }))).status, 400, 'cannot demote yourself');
   assert.equal((await staff.DELETE(req('DELETE', '/api/staff?id=ad', null, { token: admin }))).status, 400, 'cannot remove yourself');

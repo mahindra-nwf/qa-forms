@@ -2,7 +2,7 @@
 // Env vars (set in Vercel > Project > Settings > Environment Variables):
 //   SUPABASE_URL         https://<project>.supabase.co
 //   SUPABASE_SECRET_KEY  secret key (sb_secret_...) or legacy service_role key
-//   ACCESS_CODE          plant access code typed once on each device
+// There is no shared site password: every data call needs a signed-in person (see _auth.mjs).
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -18,16 +18,6 @@ export function listForms() {
     try { return { id: path.basename(f, '.json'), ...JSON.parse(fs.readFileSync(path.join(FORMS, f), 'utf8')) }; }
     catch { console.warn(`Skipping ${f}: not valid JSON`); return null; }
   }).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
-}
-
-// Returns an error Response when the request lacks the right access code, otherwise null.
-export function checkAccess(req) {
-  const expected = process.env.ACCESS_CODE;
-  if (!expected) return json(500, { error: 'Server is missing ACCESS_CODE.' });
-  const given = req.headers.get('x-access-code') || '';
-  const hash = s => crypto.createHash('sha256').update(s).digest();
-  if (!crypto.timingSafeEqual(hash(given), hash(expected))) return json(401, { error: 'Access code required.', code: 'locked' });
-  return null;
 }
 
 export async function readBody(req) {
@@ -57,10 +47,8 @@ export async function db(method, pathAndQuery, body) {
   return data;
 }
 
-// Wraps a handler with the access check and error handling.
+// Wraps a handler with error handling.
 export const handle = fn => async req => {
-  const denied = checkAccess(req);
-  if (denied) return denied;
   try { return await fn(req); }
   catch (e) {
     if (e instanceof HttpError) return json(e.status, { error: e.message, ...(e.code && { code: e.code }) });

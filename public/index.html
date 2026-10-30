@@ -344,12 +344,11 @@ async function demoApi(method, url, body) {
 async function apiCall(method, url, body) {
   if (DEMO) return demoApi(method, url, body);
   let r;
-  try { r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-Access-Code': ls.get('qa-code'), 'X-Session': ls.get('qa-session') }, body: body && JSON.stringify(body) }); }
+  try { r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-Session': ls.get('qa-session') }, body: body && JSON.stringify(body) }); }
   catch { setNet(false); throw Object.assign(new Error('No internet connection.'), { offline: true }); }
   setNet(true);
   const data = await r.json().catch(() => ({}));
   if (r.status === 401 && data.code === 'signin') { endSession(); if (!S.fill) render(); throw new Error('Please sign in again.'); }
-  if (r.status === 401 && data.code === 'locked') { S.locked = true; if (!S.fill) render(); throw new Error('Enter the plant access code.'); }
   if (!r.ok) throw new Error(data.error || 'Could not reach the QA server.');
   return data;
 }
@@ -357,22 +356,22 @@ async function apiCall(method, url, body) {
 async function load() {
   try {
     // Online version only: who is signed in on this device. The plant server and demo have no sign-in.
-    const sess = DEMO ? null : await apiCall('GET', '/api/session').catch(x => { if (S.locked) throw x; return null; });
+    const sess = DEMO ? null : await apiCall('GET', '/api/session').catch(() => null);
     S.auth = !!sess; S.me = sess?.user || null; S.signin = sess;
     if (S.auth && !S.me) { S.offline = false; S.ready = true; render(); return; }
     [S.forms, S.staff, S.subs] = await Promise.all(['forms', 'staff', 'submissions'].map(k => apiCall('GET', '/api/' + k)));
-    S.offline = false; S.locked = false; S.ready = true;
+    S.offline = false; S.ready = true;
     S.testMode = !!(await apiCall('GET', '/api/mode').catch(() => ({}))).allowChanges;
     document.getElementById('testBar').hidden = !S.testMode;
     if (S.auth) saveCache();
     syncOutbox();
   } catch {
     // No connection: carry on with what this iPad saved last time, so forms can still be filled.
-    const c = !S.locked && !S.net && readCache();
+    const c = !S.net && readCache();
     if (c) {
       Object.assign(S, { auth: true, me: c.me, forms: c.forms, staff: c.staff, subs: c.subs, testMode: c.testMode, ready: true, offline: false });
       document.getElementById('testBar').hidden = !S.testMode;
-    } else if (!S.locked) S.offline = true;
+    } else S.offline = true;
   }
   if (!S.fill) render();
 }
@@ -380,7 +379,6 @@ async function load() {
 function render() {
   document.querySelectorAll('nav a').forEach(a => a.dataset.view === S.view ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
   document.body.classList.toggle('wide', !!S.fill);
-  if (S.locked) { renderLock(); return; }
   if (S.offline) { app.innerHTML = `<div class="notice"><h2>Can't reach the QA server</h2><p>Check this device's internet or Wi-Fi connection, then reload the page.</p></div>`; return; }
   renderWho();
   if (!S.ready) return;
@@ -941,16 +939,15 @@ async function syncOutbox() {
     const token = S.me?.id === item.staffId ? ls.get('qa-session') : item.token;
     let r, data;
     try {
-      r = await fetch('/api/submissions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Access-Code': ls.get('qa-code'), 'X-Session': token },
+      r = await fetch('/api/submissions', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Session': token },
         body: JSON.stringify({ formId: item.formId, values: item.values, notes: item.notes, clientId: item.clientId, filledAt: item.filledAt }) });
       data = await r.json().catch(() => ({}));
     } catch { setNet(false); break; }
     setNet(true);
     if (r.ok) { list = getOutbox().filter(x => x.clientId !== item.clientId); store2.set('qa-outbox', list); sent++; continue; }
     // Kept on the iPad until it can be sent; the reason shows in History.
-    const error = r.status === 401 ? (data.code === 'locked' ? 'Access code needed' : `${item.staffName} needs to sign in again`) : data.error || `Server error ${r.status}`;
+    const error = r.status === 401 ? `${item.staffName} needs to sign in again` : data.error || `Server error ${r.status}`;
     store2.set('qa-outbox', getOutbox().map(x => x.clientId === item.clientId ? { ...x, error } : x));
-    if (r.status === 401 && data.code === 'locked') break;
   }
   S.syncing = false; renderNet();
   if (sent && S.me && !S.fill) { toast(`${sent} saved record${sent === 1 ? '' : 's'} sent`); load(); }
@@ -977,7 +974,7 @@ const touch = () => ls.set('qa-active', String(Date.now()));
 
 function endSession() {
   const c = readCache(); if (c) ls.set('qa-cache', JSON.stringify({ ...c, me: null }));
-  ls.set('qa-session', ''); S.me = null; S.fill = null; S.detail = null; S.editing = null; S.subs = []; S.pick = null;
+  ls.set('qa-session', ''); S.me = null; S.fill = null; S.detail = null; S.editing = null; S.subs = [];
   clearInterval(S.clock);
 }
 function signOut(msg) { endSession(); go('forms'); if (msg) toast(msg); }
@@ -993,82 +990,88 @@ function renderWho() {
 }
 
 function startSession({ token, user }) {
-  ls.set('qa-session', token); touch(); S.me = user; S.pick = null; toast(`Signed in as ${user.name}`); load();
+  ls.set('qa-session', token); touch(); S.me = user; toast(`Signed in as ${user.name}`); load();
 }
+
+const pinsOn = () => !!S.signin?.pinRequired;
+const PIN_RE = /^[0-9]{6,8}$/;
+const pinField = (id, label) => `<label class="field"><span class="lbl">${label}</span><input type="password" id="${id}" inputmode="numeric" pattern="[0-9]{6,8}" required autocomplete="off"></label>`;
 
 function renderSignin() {
   const { people = [], needsSetup } = S.signin || {};
   if (needsSetup) {
     app.innerHTML = `<div class="notice"><h2>Set up the first admin</h2>
-      <p>No one has an account yet. Enter your name and choose a PIN (4 to 8 digits). You can then add everyone else on the Staff page.</p>
+      <p>No one has an account yet. Enter your name${pinsOn() ? ' and choose a PIN (6 to 8 digits)' : ''}. You can then add everyone else on the Staff page.</p>
       <form class="pin-box" id="setup">
         <label class="field"><span class="lbl">Your name</span><input type="text" id="sName" required autocomplete="off"></label>
-        <label class="field"><span class="lbl">Choose a PIN</span><input type="password" id="sPin" inputmode="numeric" pattern="[0-9]{4,8}" required autocomplete="off"></label>
-        <label class="field"><span class="lbl">Type the PIN again</span><input type="password" id="sPin2" inputmode="numeric" pattern="[0-9]{4,8}" required autocomplete="off"></label>
+        ${pinsOn() ? pinField('sPin', 'Choose a PIN') + pinField('sPin2', 'Type the PIN again') : ''}
         <button class="btn primary">Create admin account</button><span class="err" id="err" role="alert"></span>
       </form></div>`;
     document.getElementById('sName').focus();
     document.getElementById('setup').onsubmit = async e => {
       e.preventDefault();
-      const err = document.getElementById('err'), pin = document.getElementById('sPin').value;
-      if (!/^[0-9]{4,8}$/.test(pin)) return err.textContent = 'PIN must be 4 to 8 digits.';
-      if (pin !== document.getElementById('sPin2').value) return err.textContent = 'The two PINs do not match.';
+      const err = document.getElementById('err'), pin = document.getElementById('sPin')?.value;
+      if (pinsOn() && !PIN_RE.test(pin)) return err.textContent = 'PIN must be 6 to 8 digits.';
+      if (pinsOn() && pin !== document.getElementById('sPin2').value) return err.textContent = 'The two PINs do not match.';
       try { startSession(await apiCall('POST', '/api/session', { action: 'setup', name: document.getElementById('sName').value, pin })); }
       catch (x) { err.textContent = x.message; }
     };
     return;
   }
-  const who = people.find(p => p.id === S.pick);
-  if (!who) {
+  if (!pinsOn()) {
+    // PINs off (testing): tap your name to sign in.
     app.innerHTML = `<div class="head"><div><div class="eyebrow">Sign in</div><h1>Who is filling forms?</h1></div></div>
       ${people.length ? `<div class="people">${people.map(p => `<button class="btn" data-pick="${esc(p.id)}">${esc(p.name)}</button>`).join('')}</div>`
-        : '<div class="notice"><h2>No accounts yet</h2><p>Ask an admin to add you on the Staff page.</p></div>'}
+        : '<div class="notice"><h2>No one is listed yet</h2><p>Ask an admin to add you on the Staff page.</p></div>'}
       <p class="muted" style="margin:0">Not listed? Ask an admin to add you.</p>`;
-    app.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { S.pick = b.dataset.pick; render(); });
+    app.querySelectorAll('[data-pick]').forEach(b => b.onclick = async () => {
+      try { startSession(await apiCall('POST', '/api/session', { action: 'login', staffId: b.dataset.pick })); } catch (x) { toast(x.message); }
+    });
     return;
   }
-  app.innerHTML = `<div><button class="btn link" id="back">← Not ${esc(who.name)}?</button></div>
-    <div class="notice"><h2>Hi ${esc(who.name)}</h2><p>Enter your PIN.</p>
-    <form class="pin-box" id="pinForm"><input type="password" id="pin" inputmode="numeric" pattern="[0-9]*" required autocomplete="off" aria-label="PIN">
+  // PINs on: type your name and PIN; nobody is listed.
+  app.innerHTML = `<div class="notice"><h2>Sign in</h2><p>Type your name and PIN.</p>
+    <form class="pin-box" id="pinForm">
+      <label class="field"><span class="lbl">Your name</span><input type="text" id="name" required autocomplete="off" autocapitalize="words"></label>
+      <label class="field"><span class="lbl">PIN</span><input type="password" id="pin" inputmode="numeric" pattern="[0-9]*" required autocomplete="off"></label>
       <button class="btn primary">Sign in</button><span class="err" id="err" role="alert"></span></form></div>`;
-  document.getElementById('back').onclick = () => { S.pick = null; render(); };
-  const pin = document.getElementById('pin'); pin.focus();
+  const name = document.getElementById('name'), pin = document.getElementById('pin'); name.focus();
   document.getElementById('pinForm').onsubmit = async e => {
     e.preventDefault();
-    try { startSession(await apiCall('POST', '/api/session', { action: 'login', staffId: who.id, pin: pin.value })); }
+    try { startSession(await apiCall('POST', '/api/session', { action: 'login', name: name.value, pin: pin.value })); }
     catch (x) { document.getElementById('err').textContent = x.message; pin.value = ''; pin.focus(); }
   };
 }
 
 function renderTeam() {
-  const admin = S.me?.role === 'admin';
+  const admin = S.me?.role === 'admin', pins = pinsOn();
   const roleSel = (id, v) => `<select data-role="${esc(id)}" aria-label="Role">${Object.entries(ROLE_NAME).map(([k, n]) => `<option value="${k}"${k === v ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
   app.innerHTML = `<div class="head"><div><div class="eyebrow">Staff · ${S.staff.length}</div><h1>Team</h1></div></div>
-    <p class="muted" style="margin:0;max-width:62ch">Everyone signs in with their own PIN, and their name goes on every form they submit. <b>Operators</b> fill forms. <b>QA</b> can also edit and delete records while test mode is on. <b>Admins</b> can also manage this list.</p>
-    ${admin ? `<form class="add-person" id="addPerson">
+    <p class="muted" style="margin:0;max-width:62ch">${pins ? 'Everyone signs in with their name and own PIN' : 'Everyone signs in by tapping their name'}, and their name goes on every form they submit. <b>Operators</b> fill forms. <b>QA</b> can also edit and delete records while test mode is on. <b>Admins</b> can also manage this list.</p>
+    ${admin ? `<form class="add-person" id="addPerson"${pins ? '' : ' style="grid-template-columns: 2fr 1fr auto"'}>
       <label class="field"><span class="lbl">Name</span><input type="text" id="pName" required autocomplete="off"></label>
       <label class="field"><span class="lbl">Role</span>${roleSel('new', 'operator')}</label>
-      <label class="field"><span class="lbl">PIN (4–8 digits)</span><input type="password" id="pPin" inputmode="numeric" pattern="[0-9]{4,8}" required autocomplete="off"></label>
+      ${pins ? pinField('pPin', 'PIN (6–8 digits)') : ''}
       <button class="btn primary">Add</button></form>` : ''}
     <div class="team">${S.staff.map(p => `<div class="person"><span class="nm">${esc(p.name)}${p.id === S.me?.id ? ' <span class="muted">(you)</span>' : ''}</span>
-      ${p.hasPin ? '' : '<span class="pill bad" style="margin:0">No PIN</span>'}
-      ${admin && p.id !== S.me.id ? `${roleSel(p.id, p.role)}<button class="btn" data-pin="${esc(p.id)}">Reset PIN</button><button class="btn" data-del="${esc(p.id)}">Remove</button>`
+      ${pins && !p.hasPin ? '<span class="pill bad" style="margin:0">No PIN</span>' : ''}
+      ${admin && p.id !== S.me.id ? `${roleSel(p.id, p.role)}${pins ? `<button class="btn" data-pin="${esc(p.id)}">Reset PIN</button>` : ''}<button class="btn" data-del="${esc(p.id)}">Remove</button>`
         : `<span class="role">${esc(ROLE_NAME[p.role] || p.role)}</span>`}</div>`).join('')}</div>`;
   if (!admin) return;
   const save = async (method, url, body, msg) => { try { S.staff = await apiCall(method, url, body); toast(msg); render(); } catch (x) { toast(x.message); } };
   document.getElementById('addPerson').onsubmit = e => {
     e.preventDefault();
-    const name = document.getElementById('pName').value.trim(), pin = document.getElementById('pPin').value;
-    if (!/^[0-9]{4,8}$/.test(pin)) return toast('PIN must be 4 to 8 digits.');
-    save('POST', '/api/staff', { name, role: app.querySelector('[data-role="new"]').value, pin }, `Added ${name}`);
+    const name = document.getElementById('pName').value.trim(), pin = document.getElementById('pPin')?.value;
+    if (pins && !PIN_RE.test(pin)) return toast('PIN must be 6 to 8 digits.');
+    save('POST', '/api/staff', { name, role: app.querySelector('[data-role="new"]').value, ...(pins && { pin }) }, `Added ${name}`);
   };
   const url = id => '/api/staff/' + encodeURIComponent(id), nameOf = id => S.staff.find(p => p.id === id)?.name;
   app.querySelectorAll('[data-role]:not([data-role="new"])').forEach(sel => sel.onchange = () =>
     save('PATCH', url(sel.dataset.role), { role: sel.value }, `${nameOf(sel.dataset.role)} is now ${ROLE_NAME[sel.value]}`));
   app.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => {
-    const pin = prompt(`New PIN for ${nameOf(b.dataset.pin)} (4 to 8 digits)`);
+    const pin = prompt(`New PIN for ${nameOf(b.dataset.pin)} (6 to 8 digits)`);
     if (pin == null) return;
-    if (!/^[0-9]{4,8}$/.test(pin)) return toast('PIN must be 4 to 8 digits.');
+    if (!PIN_RE.test(pin)) return toast('PIN must be 6 to 8 digits.');
     save('PATCH', url(b.dataset.pin), { pin }, `PIN reset for ${nameOf(b.dataset.pin)}`);
   });
   app.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
@@ -1081,16 +1084,6 @@ function renderTeam() {
 ['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, () => { if (S.me) touch(); }, { passive: true }));
 setInterval(() => { if (S.me && !S.fill && Date.now() - Number(ls.get('qa-active') || 0) > IDLE_MS) signOut('Signed out after 5 idle minutes'); }, 15e3);
 if (ls.get('qa-session') && Date.now() - Number(ls.get('qa-active') || 0) > IDLE_MS) ls.set('qa-session', '');
-
-/* ---------- Access code (online version) ---------- */
-function renderLock() {
-  app.innerHTML = `<div class="notice"><h2>Enter the plant access code</h2>
-    <p>${ls.get('qa-code') ? '<strong>That code did not work.</strong> ' : ''}Ask QA for the code. This device remembers it.</p>
-    <form class="add" id="unlock"><input type="password" id="code" required autocomplete="off" aria-label="Access code">
-    <button class="btn primary">Unlock</button></form></div>`;
-  const code = document.getElementById('code'); code.focus();
-  document.getElementById('unlock').onsubmit = e => { e.preventDefault(); ls.set('qa-code', code.value.trim()); S.locked = false; S.offline = false; load(); };
-}
 
 /* ---------- Boot ---------- */
 const VIEWS = ['forms', 'dashboard', 'history', 'staff'];
