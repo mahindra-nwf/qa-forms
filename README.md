@@ -57,7 +57,7 @@ Every push to `main` publishes a demo to GitHub Pages. The demo has no server, s
 
 ## Adding a form
 
-Each form is one JSON file in `forms/`. The file name becomes the form's id. See `forms/receiving-log-001.json` for an example. Field types: `text`, `textarea`, `number` (with `unit`), `select` (with `options`), `passfail` (optional `options`), `checkbox`, `date`, `time`, `table` (with `columns`, `rows`) and `matrix`. Tables with more than 6 columns show each row as a card.
+Each form is one JSON file in `forms/`. The file name becomes the form's id. See `forms/receiving-log-001-cards.json` for an example. Field types: `text`, `textarea`, `number` (with `unit`), `select` (with `options`), `passfail` (optional `options`), `checkbox`, `date`, `time`, `table` (with `columns`, `rows`) and `matrix`. Tables with more than 6 columns show each row as a card.
 
 Push to `main` and the online version, the demo and (after a restart) the plant server all pick up the new form.
 

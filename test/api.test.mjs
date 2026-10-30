@@ -55,7 +55,7 @@ test('rejects requests without the right access code', async () => {
 
 test('lists the forms from forms/', async () => {
   const list = await (await forms.GET(req('GET', '/api/forms'))).json();
-  assert.ok(list.some(f => f.id === 'receiving-log-001'));
+  assert.ok(list.some(f => f.id === 'receiving-log-001-cards'));
 });
 
 test('first setup creates an admin, then is closed', async () => {
@@ -95,7 +95,7 @@ test('a forged or tampered session is refused', async () => {
 
 test('Filled by comes from the signed-in person, not the device', async () => {
   const token = person('bo', 'operator');
-  const r = await subs.POST(req('POST', '/api/submissions', { formId: 'receiving-log-001', staffName: 'Someone Else', values: { t: 1 }, submittedAt: '1999-01-01' }, { token }));
+  const r = await subs.POST(req('POST', '/api/submissions', { formId: 'receiving-log-001-cards', staffName: 'Someone Else', values: { t: 1 }, submittedAt: '1999-01-01' }, { token }));
   assert.equal(r.status, 201);
   assert.equal(T.submissions[0].staff_name, 'BO');
   assert.equal(T.submissions[0].staff_id, 'bo');
@@ -103,7 +103,7 @@ test('Filled by comes from the signed-in person, not the device', async () => {
 });
 
 test('submitting needs a signed-in person and a real form', async () => {
-  assert.equal((await subs.POST(req('POST', '/api/submissions', { formId: 'receiving-log-001' }))).status, 401);
+  assert.equal((await subs.POST(req('POST', '/api/submissions', { formId: 'receiving-log-001-cards' }))).status, 401);
   const token = person('bo', 'operator');
   assert.equal((await subs.POST(req('POST', '/api/submissions', { formId: 'nope' }, { token }))).status, 400);
 });
