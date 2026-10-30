@@ -23,8 +23,19 @@ There are three ways to run it:
    - `SUPABASE_SECRET_KEY`: from Supabase **Project Settings > API Keys**, the **secret** key (`sb_secret_...`)
    - `ACCESS_CODE`: a code you choose for the plant, at least 10 characters. Staff type it once on each iPad.
 4. Redeploy (**Deployments > ... > Redeploy**). Open the Vercel link on an iPad, enter the access code, and fill a test form.
+5. The first person to open the site creates the first **Admin** account (name + PIN). That admin then adds everyone else on the **Staff** page.
 
 Never put the secret key anywhere except Vercel's environment variables.
+
+### Staff sign-in (online version)
+
+- Each device is unlocked once with the plant access code.
+- Then each person taps their name and types their own PIN (4 to 8 digits). Their name goes on every form they submit and cannot be changed on the form.
+- Roles: **Operator** fills forms. **QA** can also edit and delete records while test mode is on. **Admin** can also add people, change roles, reset PINs and remove people.
+- The device signs out after 5 idle minutes (never while a form is open). 5 wrong PINs in a row lock that person out for 5 minutes.
+- PINs are stored only as salted hashes. A forgotten PIN is reset by an admin.
+
+The plant network version and the demo have no sign-in; names are typed as before.
 
 **Test mode is on.** While testing, records can be edited and deleted (a banner says so). Before real use, run this in Supabase **SQL Editor** to lock records permanently:
 

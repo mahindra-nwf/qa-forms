@@ -63,7 +63,7 @@ export const handle = fn => async req => {
   if (denied) return denied;
   try { return await fn(req); }
   catch (e) {
-    if (e instanceof HttpError) return json(e.status, { error: e.message });
+    if (e instanceof HttpError) return json(e.status, { error: e.message, ...(e.code && { code: e.code }) });
     console.error(e);
     return json(500, { error: 'Server error.' });
   }

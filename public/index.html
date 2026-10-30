@@ -88,7 +88,7 @@ main { padding-block: 24px 64px; display: grid; gap: 20px; }
 .field > .lbl .req { color: var(--bad); }
 .field > .hint { font-size: .85rem; color: var(--muted); }
 .row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
-input[type=text], input[type=number], input[type=date], input[type=time], select, textarea {
+input[type=text], input[type=number], input[type=date], input[type=time], input[type=password], select, textarea {
   width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--bg); min-width: 0; }
 textarea { resize: vertical; }
 .num { display: flex; align-items: center; gap: 6px; }
@@ -229,6 +229,21 @@ dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .chip button { border: 0; background: none; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 999px; }
 .chip button:hover { color: var(--bad); }
 .add { display: flex; gap: 8px; max-width: 420px; }
+.who { display: flex; align-items: center; gap: 8px; font-size: .9rem; }
+.who[hidden] { display: none; }
+.who b { font-weight: 600; }
+.role { font-family: var(--mono); font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+.people { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.people button { min-height: 64px; font-size: 1.1rem; }
+.pin-box { display: grid; gap: 12px; max-width: 320px; }
+.pin-box input[type=password] { font-size: 1.6rem; letter-spacing: .4em; text-align: center; padding: 12px; }
+.pin-box .btn { min-height: 52px; font-size: 1.05rem; }
+.team { display: grid; gap: 8px; }
+.team .person { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 12px; }
+.team .person .nm { font-weight: 600; margin-right: auto; }
+.team select { width: auto; }
+.add-person { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 8px; align-items: end; max-width: 640px; }
+@media (max-width: 600px) { .add-person { grid-template-columns: 1fr 1fr; } }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(20px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 6px; font-weight: 600; }
 @media (prefers-reduced-motion: no-preference) { .toast { animation: rise .2s ease-out; } @keyframes rise { from { transform: translate(-50%, 8px); opacity: 0; } } }
 </style>
@@ -241,6 +256,7 @@ dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
       <a href="#history" data-view="history">History</a>
       <a href="#staff" data-view="staff">Staff</a>
     </nav>
+    <span class="who" id="who" hidden></span>
     <button class="btn theme" id="themeBtn" type="button"></button>
   </div>
 </header>
@@ -297,8 +313,9 @@ async function demoApi(method, url, body) {
 
 async function apiCall(method, url, body) {
   if (DEMO) return demoApi(method, url, body);
-  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-Access-Code': ls.get('qa-code') }, body: body && JSON.stringify(body) });
+  const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'X-Access-Code': ls.get('qa-code'), 'X-Session': ls.get('qa-session') }, body: body && JSON.stringify(body) });
   const data = await r.json().catch(() => ({}));
+  if (r.status === 401 && data.code === 'signin') { endSession(); if (!S.fill) render(); throw new Error('Please sign in again.'); }
   if (r.status === 401 && data.code === 'locked') { S.locked = true; if (!S.fill) render(); throw new Error('Enter the plant access code.'); }
   if (!r.ok) throw new Error(data.error || 'Could not reach the QA server.');
   return data;
@@ -306,6 +323,10 @@ async function apiCall(method, url, body) {
 
 async function load() {
   try {
+    // Online version only: who is signed in on this device. The plant server and demo have no sign-in.
+    const sess = DEMO ? null : await apiCall('GET', '/api/session').catch(x => { if (S.locked) throw x; return null; });
+    S.auth = !!sess; S.me = sess?.user || null; S.signin = sess;
+    if (S.auth && !S.me) { S.offline = false; S.ready = true; render(); return; }
     [S.forms, S.staff, S.subs] = await Promise.all(['forms', 'staff', 'submissions'].map(k => apiCall('GET', '/api/' + k)));
     S.offline = false; S.locked = false; S.ready = true;
     S.testMode = !!(await apiCall('GET', '/api/mode').catch(() => ({}))).allowChanges;
@@ -319,7 +340,9 @@ function render() {
   document.body.classList.toggle('wide', !!S.fill);
   if (S.locked) { renderLock(); return; }
   if (S.offline) { app.innerHTML = `<div class="notice"><h2>Can't reach the QA server</h2><p>Check this device's internet or Wi-Fi connection, then reload the page.</p></div>`; return; }
+  renderWho();
   if (!S.ready) return;
+  if (S.auth && !S.me) return renderSignin();
   if (S.fill) return renderFill();
   if (S.detail) return renderDetail();
   ({ forms: renderForms, history: renderHistory, staff: renderStaff }[S.view] || renderForms)();
@@ -458,7 +481,7 @@ function numberRows() {
   }));
 }
 
-const staffInput = () => `<input type="text" id="_staff" name="_staff" list="staffList" required autocomplete="off" value="${esc(ls.get('qa-staff'))}" placeholder="Pick or type your name">
+const staffInput = () => S.me ? `<input type="text" id="_staff" name="_staff" readonly value="${esc(S.me.name)}" aria-label="Filled by (signed in)">` : `<input type="text" id="_staff" name="_staff" list="staffList" required autocomplete="off" value="${esc(ls.get('qa-staff'))}" placeholder="Pick or type your name">
   <datalist id="staffList">${S.staff.map(s => `<option value="${esc(s.name)}">`).join('')}</datalist>`;
 const submitBar = `<div class="sheet-foot"><button class="btn primary" type="submit" id="submitBtn">Submit form</button><span class="err" id="err" role="alert"></span></div>`;
 
@@ -716,8 +739,8 @@ function renderDetail() {
   <article class="sheet">
     <div class="sheet-head"><div class="eyebrow">${[s.formCode, s.category].filter(Boolean).map(esc).join(' · ') || 'Submitted record'}</div>
       <h1>${esc(s.formName)}</h1>
-      <p style="margin:0">Filled by <strong>${esc(s.staffName)}</strong> · <span class="mono">${esc(fmtWhen(s.submittedAt))}</span>${s.editedAt ? ` · <span class="muted">Edited ${esc(fmtWhen(s.editedAt))}</span>` : ''}</p>
-      ${S.testMode && def ? `<div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="editSub">Edit</button><button class="btn" id="delSub">Delete</button></div>` : ''}</div>
+      <p style="margin:0">Filled by <strong>${esc(s.staffName)}</strong> · <span class="mono">${esc(fmtWhen(s.submittedAt))}</span>${s.editedAt ? ` · <span class="muted">Edited ${esc(fmtWhen(s.editedAt))}${s.editedBy ? ` by ${esc(s.editedBy)}` : ''}</span>` : ''}</p>
+      ${S.testMode && def && canChange() ? `<div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="editSub">Edit</button><button class="btn" id="delSub">Delete</button></div>` : ''}</div>
     <div class="sheet-body">${body}
       ${s.notes ? `<fieldset><legend>Notes</legend><p style="margin:0;white-space:pre-wrap">${esc(s.notes)}</p></fieldset>` : ''}
     </div>
@@ -739,6 +762,7 @@ function renderDetail() {
 
 /* ---------- Staff ---------- */
 function renderStaff() {
+  if (S.auth) return renderTeam();
   app.innerHTML = `<div class="head"><div><div class="eyebrow">Staff · ${S.staff.length}</div><h1>QA team</h1></div></div>
     <p class="muted" style="margin:0;max-width:60ch">These names appear in the “Filled by” list on every form. Staff can also type a name that isn't listed.</p>
     ${S.canEdit ? `<form class="add" id="addStaff"><input type="text" id="newStaff" placeholder="Full name or initials" required aria-label="New staff name"><button class="btn primary">Add</button></form>` : ''}
@@ -756,6 +780,116 @@ function renderStaff() {
     try { await apiCall('DELETE', '/api/staff/' + encodeURIComponent(b.dataset.del)); load(); } catch (x) { toast(x.message); }
   });
 }
+
+/* ---------- Staff sign-in (online version) ---------- */
+const ROLE_NAME = { operator: 'Operator', qa: 'QA', admin: 'Admin' };
+const IDLE_MS = 5 * 60e3;
+const canChange = () => !S.auth || ['qa', 'admin'].includes(S.me?.role);
+const touch = () => ls.set('qa-active', String(Date.now()));
+
+function endSession() {
+  ls.set('qa-session', ''); S.me = null; S.fill = null; S.detail = null; S.editing = null; S.subs = []; S.pick = null;
+  clearInterval(S.clock);
+}
+function signOut(msg) { endSession(); go('forms'); if (msg) toast(msg); }
+
+function renderWho() {
+  const el = document.getElementById('who');
+  el.hidden = !S.me;
+  if (!S.me) return;
+  el.innerHTML = `<b>${esc(S.me.name)}</b><span class="role">${esc(ROLE_NAME[S.me.role])}</span><button class="btn link" id="signOut" type="button">Sign out</button>`;
+  document.getElementById('signOut').onclick = () => signOut();
+}
+
+function startSession({ token, user }) {
+  ls.set('qa-session', token); touch(); S.me = user; S.pick = null; toast(`Signed in as ${user.name}`); load();
+}
+
+function renderSignin() {
+  const { people = [], needsSetup } = S.signin || {};
+  if (needsSetup) {
+    app.innerHTML = `<div class="notice"><h2>Set up the first admin</h2>
+      <p>No one has an account yet. Enter your name and choose a PIN (4 to 8 digits). You can then add everyone else on the Staff page.</p>
+      <form class="pin-box" id="setup">
+        <label class="field"><span class="lbl">Your name</span><input type="text" id="sName" required autocomplete="off"></label>
+        <label class="field"><span class="lbl">Choose a PIN</span><input type="password" id="sPin" inputmode="numeric" pattern="[0-9]{4,8}" required autocomplete="off"></label>
+        <label class="field"><span class="lbl">Type the PIN again</span><input type="password" id="sPin2" inputmode="numeric" pattern="[0-9]{4,8}" required autocomplete="off"></label>
+        <button class="btn primary">Create admin account</button><span class="err" id="err" role="alert"></span>
+      </form></div>`;
+    document.getElementById('sName').focus();
+    document.getElementById('setup').onsubmit = async e => {
+      e.preventDefault();
+      const err = document.getElementById('err'), pin = document.getElementById('sPin').value;
+      if (!/^[0-9]{4,8}$/.test(pin)) return err.textContent = 'PIN must be 4 to 8 digits.';
+      if (pin !== document.getElementById('sPin2').value) return err.textContent = 'The two PINs do not match.';
+      try { startSession(await apiCall('POST', '/api/session', { action: 'setup', name: document.getElementById('sName').value, pin })); }
+      catch (x) { err.textContent = x.message; }
+    };
+    return;
+  }
+  const who = people.find(p => p.id === S.pick);
+  if (!who) {
+    app.innerHTML = `<div class="head"><div><div class="eyebrow">Sign in</div><h1>Who is filling forms?</h1></div></div>
+      ${people.length ? `<div class="people">${people.map(p => `<button class="btn" data-pick="${esc(p.id)}">${esc(p.name)}</button>`).join('')}</div>`
+        : '<div class="notice"><h2>No accounts yet</h2><p>Ask an admin to add you on the Staff page.</p></div>'}
+      <p class="muted" style="margin:0">Not listed? Ask an admin to add you.</p>`;
+    app.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => { S.pick = b.dataset.pick; render(); });
+    return;
+  }
+  app.innerHTML = `<div><button class="btn link" id="back">← Not ${esc(who.name)}?</button></div>
+    <div class="notice"><h2>Hi ${esc(who.name)}</h2><p>Enter your PIN.</p>
+    <form class="pin-box" id="pinForm"><input type="password" id="pin" inputmode="numeric" pattern="[0-9]*" required autocomplete="off" aria-label="PIN">
+      <button class="btn primary">Sign in</button><span class="err" id="err" role="alert"></span></form></div>`;
+  document.getElementById('back').onclick = () => { S.pick = null; render(); };
+  const pin = document.getElementById('pin'); pin.focus();
+  document.getElementById('pinForm').onsubmit = async e => {
+    e.preventDefault();
+    try { startSession(await apiCall('POST', '/api/session', { action: 'login', staffId: who.id, pin: pin.value })); }
+    catch (x) { document.getElementById('err').textContent = x.message; pin.value = ''; pin.focus(); }
+  };
+}
+
+function renderTeam() {
+  const admin = S.me?.role === 'admin';
+  const roleSel = (id, v) => `<select data-role="${esc(id)}" aria-label="Role">${Object.entries(ROLE_NAME).map(([k, n]) => `<option value="${k}"${k === v ? ' selected' : ''}>${n}</option>`).join('')}</select>`;
+  app.innerHTML = `<div class="head"><div><div class="eyebrow">Staff · ${S.staff.length}</div><h1>Team</h1></div></div>
+    <p class="muted" style="margin:0;max-width:62ch">Everyone signs in with their own PIN, and their name goes on every form they submit. <b>Operators</b> fill forms. <b>QA</b> can also edit and delete records while test mode is on. <b>Admins</b> can also manage this list.</p>
+    ${admin ? `<form class="add-person" id="addPerson">
+      <label class="field"><span class="lbl">Name</span><input type="text" id="pName" required autocomplete="off"></label>
+      <label class="field"><span class="lbl">Role</span>${roleSel('new', 'operator')}</label>
+      <label class="field"><span class="lbl">PIN (4–8 digits)</span><input type="password" id="pPin" inputmode="numeric" pattern="[0-9]{4,8}" required autocomplete="off"></label>
+      <button class="btn primary">Add</button></form>` : ''}
+    <div class="team">${S.staff.map(p => `<div class="person"><span class="nm">${esc(p.name)}${p.id === S.me?.id ? ' <span class="muted">(you)</span>' : ''}</span>
+      ${p.hasPin ? '' : '<span class="pill bad" style="margin:0">No PIN</span>'}
+      ${admin && p.id !== S.me.id ? `${roleSel(p.id, p.role)}<button class="btn" data-pin="${esc(p.id)}">Reset PIN</button><button class="btn" data-del="${esc(p.id)}">Remove</button>`
+        : `<span class="role">${esc(ROLE_NAME[p.role] || p.role)}</span>`}</div>`).join('')}</div>`;
+  if (!admin) return;
+  const save = async (method, url, body, msg) => { try { S.staff = await apiCall(method, url, body); toast(msg); render(); } catch (x) { toast(x.message); } };
+  document.getElementById('addPerson').onsubmit = e => {
+    e.preventDefault();
+    const name = document.getElementById('pName').value.trim(), pin = document.getElementById('pPin').value;
+    if (!/^[0-9]{4,8}$/.test(pin)) return toast('PIN must be 4 to 8 digits.');
+    save('POST', '/api/staff', { name, role: app.querySelector('[data-role="new"]').value, pin }, `Added ${name}`);
+  };
+  const url = id => '/api/staff/' + encodeURIComponent(id), nameOf = id => S.staff.find(p => p.id === id)?.name;
+  app.querySelectorAll('[data-role]:not([data-role="new"])').forEach(sel => sel.onchange = () =>
+    save('PATCH', url(sel.dataset.role), { role: sel.value }, `${nameOf(sel.dataset.role)} is now ${ROLE_NAME[sel.value]}`));
+  app.querySelectorAll('[data-pin]').forEach(b => b.onclick = () => {
+    const pin = prompt(`New PIN for ${nameOf(b.dataset.pin)} (4 to 8 digits)`);
+    if (pin == null) return;
+    if (!/^[0-9]{4,8}$/.test(pin)) return toast('PIN must be 4 to 8 digits.');
+    save('PATCH', url(b.dataset.pin), { pin }, `PIN reset for ${nameOf(b.dataset.pin)}`);
+  });
+  app.querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    if (confirm(`Remove ${nameOf(b.dataset.del)}? They will no longer be able to sign in. Their past records stay.`))
+      save('DELETE', url(b.dataset.del), null, `Removed ${nameOf(b.dataset.del)}`);
+  });
+}
+
+// Shared iPads: sign out after 5 idle minutes, but never while a form is open.
+['pointerdown', 'keydown'].forEach(ev => addEventListener(ev, () => { if (S.me) touch(); }, { passive: true }));
+setInterval(() => { if (S.me && !S.fill && Date.now() - Number(ls.get('qa-active') || 0) > IDLE_MS) signOut('Signed out after 5 idle minutes'); }, 15e3);
+if (ls.get('qa-session') && Date.now() - Number(ls.get('qa-active') || 0) > IDLE_MS) ls.set('qa-session', '');
 
 /* ---------- Access code (online version) ---------- */
 function renderLock() {
