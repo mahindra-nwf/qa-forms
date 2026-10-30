@@ -1,0 +1,37 @@
+{
+  "name": "Shipping Pallet Count",
+  "code": "Log 080",
+  "category": "Shipping",
+  "frequency": "Each shipment",
+  "description": "Pallets loaded for a shipment, with type, flavor, lot and case count. Revision 1, 02/14/2022.",
+  "sections": [
+    {
+      "title": "Shipment",
+      "fields": [
+        { "id": "date", "label": "Date", "type": "date", "required": true, "default": "today" },
+        { "id": "po", "label": "PO #", "type": "text", "required": true }
+      ]
+    },
+    {
+      "title": "Pallets",
+      "fields": [
+        {
+          "id": "pallets",
+          "label": "Pallets",
+          "type": "table",
+          "rows": 2,
+          "hint": "One card per pallet. Choose Other and type the flavor if it is not listed.",
+          "columns": [
+            { "id": "pallet", "label": "Pallet #", "type": "number" },
+            { "id": "type", "label": "Type", "type": "select", "options": ["WMT Fresh", "Costco", "Moji", "Retail", "Aldi EV", "Crushi"] },
+            { "id": "flavor", "label": "Flavor", "type": "select", "options": ["Spicy", "California", "Cali CC", "Crab", "Salmon", "Beef Bulgogi", "Shrimp", "Other"] },
+            { "id": "otherFlavor", "label": "Other flavor", "type": "text" },
+            { "id": "lot", "label": "Lot #", "type": "text" },
+            { "id": "cases", "label": "Case count", "type": "number" },
+            { "id": "verifiedBy", "label": "Verified by", "type": "text" }
+          ]
+        }
+      ]
+    }
+  ]
+}

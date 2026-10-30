@@ -1,0 +1,85 @@
+{
+  "name": "Pallet Count",
+  "code": "Log 074",
+  "category": "Production",
+  "frequency": "Daily",
+  "description": "Pallets completed during production, with case counts and who verified each pallet.",
+  "sections": [
+    {
+      "title": "Products",
+      "fields": [
+        { "id": "date", "label": "Date", "type": "date", "required": true, "default": "today" },
+        { "id": "page", "label": "Page (for example 1/2)", "type": "text" },
+        {
+          "id": "products",
+          "label": "Products on this sheet",
+          "type": "table",
+          "rows": 3,
+          "hint": "Product number (1, 2, 3…) is the line number here. Type: Moji, Retail, FV, SB, Meal Single, Meal Fam, Sauce.",
+          "columns": [
+            { "id": "product", "label": "Product", "type": "text" },
+            { "id": "type", "label": "Type", "type": "select", "options": ["Moji", "Retail", "FV", "SB", "Meal Single", "Meal Fam", "Sauce"] },
+            { "id": "flavor", "label": "Flavor", "type": "text" },
+            { "id": "prodDate", "label": "Prod. date", "type": "date" },
+            { "id": "lot", "label": "Lot #", "type": "text" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Pallets",
+      "fields": [
+        {
+          "id": "pallets",
+          "label": "Pallets",
+          "type": "table",
+          "rows": 5,
+          "hint": "The row number is the pallet number. Add a row for each pallet.",
+          "columns": [
+            { "id": "time", "label": "Time completed", "type": "time" },
+            { "id": "product", "label": "Product (1, 2, 3…)", "type": "select", "options": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"] },
+            { "id": "cases", "label": "Case count", "type": "number" },
+            { "id": "verifiedBy", "label": "Verified by", "type": "text" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Transfers",
+      "fields": [
+        {
+          "id": "transfersFrom",
+          "label": "Transferred from",
+          "type": "table",
+          "rows": 1,
+          "columns": [
+            { "id": "prodDate", "label": "Prod. date", "type": "date" },
+            { "id": "item", "label": "Item #", "type": "text" },
+            { "id": "variety", "label": "Variety", "type": "text" },
+            { "id": "lot", "label": "Lot code", "type": "text" }
+          ]
+        },
+        {
+          "id": "transfersTo",
+          "label": "Transferred to",
+          "type": "table",
+          "rows": 1,
+          "columns": [
+            { "id": "item", "label": "Item #", "type": "text" },
+            { "id": "finalProduct", "label": "Final product", "type": "text" },
+            { "id": "qty", "label": "Qty", "type": "number" },
+            { "id": "lot", "label": "Lot code", "type": "text" },
+            { "id": "initial", "label": "Initial", "type": "text" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "QA verification",
+      "fields": [
+        { "id": "qaVerification", "label": "QA verification (initials)", "type": "text" },
+        { "id": "qaDate", "label": "Date", "type": "date" }
+      ]
+    }
+  ]
+}

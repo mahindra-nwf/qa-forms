@@ -691,7 +691,7 @@ async function submitFill(e) {
 /* ---------- History ---------- */
 const leaves = v => v && typeof v === 'object' ? Object.values(v).flatMap(leaves) : [v];
 const hasFail = s => leaves(s.values).some(v => BAD.includes(v));
-const BAD = ['Fail', 'Rejected', 'Reject', 'Issue'], GOOD = ['Pass', 'Accepted', 'Accept'];
+const BAD = ['Fail', 'Rejected', 'Reject', 'Issue', 'Unsatisfactory'], GOOD = ['Pass', 'Accepted', 'Accept'];
 
 function filtered() {
   const { form, who, from, to, q } = S.filter, ql = q.toLowerCase();

@@ -1,0 +1,89 @@
+{
+  "name": "Shipping & Product Release",
+  "code": "Log 025",
+  "category": "Shipping",
+  "frequency": "Each shipment",
+  "description": "Truck inspection and product release for each shipment. Revision 9, 03/05/2025.",
+  "sections": [
+    {
+      "title": "Truck",
+      "fields": [
+        { "id": "date", "label": "Date", "type": "date", "required": true, "default": "today" },
+        { "id": "carrier", "label": "Carrier", "type": "text", "required": true },
+        { "id": "apptTime", "label": "Appt time", "type": "time" },
+        { "id": "arrival", "label": "Arrival", "type": "time", "required": true },
+        { "id": "checkIn", "label": "Start time / check in", "type": "time" },
+        { "id": "finishTime", "label": "Finish time", "type": "time" },
+        { "id": "departure", "label": "Departure time", "type": "time" },
+        { "id": "seals", "label": "If FTL, seal #(s)", "type": "text" },
+        { "id": "ltlLocked", "label": "If LTL, locked?", "type": "passfail", "options": ["Yes", "No", "N/A"] }
+      ]
+    },
+    {
+      "title": "Observations",
+      "fields": [
+        {
+          "id": "observations",
+          "label": "Trailer inspection",
+          "type": "table",
+          "rowHeader": "Observation",
+          "fixedRows": [
+            "The trailer is in good condition.",
+            "No signs of insect infestation.",
+            "No suspicious odors.",
+            "The trailer is dry and clean.",
+            "No suspicious materials.",
+            "No broken glasses or other physical hazards."
+          ],
+          "columns": [
+            { "id": "result", "label": "Result", "type": "passfail", "options": ["Satisfactory", "Unsatisfactory"], "required": true }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Temperatures",
+      "fields": [
+        { "id": "reeferSet", "label": "Reefer unit set temperature", "type": "number", "unit": "°F", "hint": "-10°F for FTL & LTL frozen shipments. 33°F continuous for refrigerated shipments." },
+        { "id": "reeferActual", "label": "Actual temperature", "type": "number", "unit": "°F", "hint": "Frozen: do not load until temp is 0°F or below. Refrigerated: do not load until temp is 33°F or below." },
+        { "id": "wheelChocks", "label": "Wheel chocks", "type": "checkbox", "checkLabel": "In place" },
+        { "id": "productTemp", "label": "Product temp", "type": "number", "unit": "°F" }
+      ]
+    },
+    {
+      "title": "Orders",
+      "fields": [
+        {
+          "id": "orders",
+          "label": "Orders on this truck",
+          "type": "table",
+          "rows": 1,
+          "columns": [
+            { "id": "customer", "label": "Customer", "type": "text" },
+            { "id": "po", "label": "P.O. #", "type": "text" },
+            { "id": "cases", "label": "Cases", "type": "number" },
+            { "id": "bol", "label": "Bill of lading", "type": "text" },
+            { "id": "tempMonitor", "label": "Temp. monitoring #", "type": "text" }
+          ]
+        },
+        { "id": "comments", "label": "Comments", "type": "textarea" }
+      ]
+    },
+    {
+      "title": "Decision",
+      "fields": [
+        { "id": "truckDecision", "label": "This truck is", "type": "passfail", "options": ["Accepted", "Rejected"], "required": true },
+        { "id": "rejectReason", "label": "Rejected because", "type": "text" },
+        { "id": "inspector", "label": "Inspector name", "type": "text", "required": true },
+        { "id": "inspectorDate", "label": "Date", "type": "date", "required": true, "default": "today" }
+      ]
+    },
+    {
+      "title": "QA release",
+      "fields": [
+        { "id": "qaInitials", "label": "QA initials", "type": "text", "hint": "QA has verified production documents per Shipping and Product Release Program SOP 046, guarantees its food safety, and releases product." },
+        { "id": "qaDate", "label": "Date", "type": "date" }
+      ]
+    }
+  ]
+}

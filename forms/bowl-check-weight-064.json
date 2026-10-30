@@ -1,0 +1,66 @@
+{
+  "name": "Bowl Product Check Weight",
+  "code": "Log 064",
+  "category": "Packaging",
+  "frequency": "Each production run",
+  "description": "Temperature, weight and seal checks for bowl products. %O2 target ≤ 0.5%, limit ≤ 1.0%.",
+  "sections": [
+    {
+      "title": "Product",
+      "fields": [
+        { "id": "date", "label": "Date", "type": "date", "required": true, "default": "today" },
+        { "id": "product", "label": "Product", "type": "text", "required": true },
+        {
+          "id": "targets",
+          "label": "Ingredient targets",
+          "type": "table",
+          "rowHeader": "Ingredient",
+          "fixedRows": ["Soup", "Noodle", "Pork", "Other 1", "Other 2", "Other 3"],
+          "columns": [
+            { "id": "name", "label": "Ingredient name (if other)", "type": "text" },
+            { "id": "target", "label": "Target (oz)", "type": "number" }
+          ]
+        },
+        {
+          "id": "scales",
+          "label": "Scales used",
+          "type": "table",
+          "rows": 2,
+          "columns": [
+            { "id": "scale", "label": "Scale #", "type": "text" },
+            { "id": "weight", "label": "Weight (g)", "type": "number" }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Checks",
+      "fields": [
+        {
+          "id": "checks",
+          "label": "Checks",
+          "type": "table",
+          "rows": 2,
+          "hint": "Two weight samples per check. %O2 check seal: target ≤ 0.5%, limit ≤ 1.0%.",
+          "columns": [
+            { "id": "time", "label": "Time", "type": "time" },
+            { "id": "tempSoup", "label": "Temp soup (°F)", "type": "number" },
+            { "id": "tempNoodle", "label": "Temp noodle (°F)", "type": "number" },
+            { "id": "tempPork", "label": "Temp pork (°F)", "type": "number" },
+            { "id": "tempOther", "label": "Temp other (°F)", "type": "number" },
+            { "id": "wSoup1", "label": "Wt soup 1 (oz)", "type": "number" },
+            { "id": "wNoodle1", "label": "Wt noodle 1 (oz)", "type": "number" },
+            { "id": "wPork1", "label": "Wt pork 1 (oz)", "type": "number" },
+            { "id": "wSoup2", "label": "Wt soup 2 (oz)", "type": "number" },
+            { "id": "wNoodle2", "label": "Wt noodle 2 (oz)", "type": "number" },
+            { "id": "wPork2", "label": "Wt pork 2 (oz)", "type": "number" },
+            { "id": "o2a", "label": "% O2 tray 1", "type": "number" },
+            { "id": "o2b", "label": "% O2 tray 2", "type": "number" },
+            { "id": "o2c", "label": "% O2 tray 3", "type": "number" },
+            { "id": "initial", "label": "Initial", "type": "text" }
+          ]
+        }
+      ]
+    }
+  ]
+}

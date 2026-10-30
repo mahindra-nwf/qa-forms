@@ -1,0 +1,81 @@
+{
+  "name": "Walmart Packaging, Temperature, and X-Ray",
+  "code": "Log 060",
+  "category": "Packaging",
+  "frequency": "Each production run",
+  "description": "X-Ray check must be completed at the start of production, every hour (±15 minutes) of production, and at the end of production. If any monitoring fails, packaging must stop and all product from last passing inspection must be checked. Rejected packages will be rerun 3 times through the X-Ray. If all 3 reruns pass, product is released. If any of the 3 reruns are rejected again, number of packages are to be indicated in the comment and packages are to be given to QA for analysis.",
+  "sections": [
+    {
+      "title": "Production",
+      "fields": [
+        { "id": "qaAuditor", "label": "QA auditor", "type": "text", "required": true },
+        { "id": "customer", "label": "Customer", "type": "text", "required": true },
+        { "id": "masterCaseUpc", "label": "Master case UPC", "type": "text" },
+        { "id": "datePacked", "label": "Date packed", "type": "date", "required": true, "default": "today" },
+        { "id": "variety", "label": "Variety", "type": "text", "required": true },
+        { "id": "masterCaseLot", "label": "Master case lot #", "type": "text", "required": true },
+        { "id": "dateProduced", "label": "Date produced", "type": "date", "required": true },
+        { "id": "fullCases", "label": "# Full cases", "type": "number" },
+        { "id": "masterCaseExpiry", "label": "Master case expiration date", "type": "date" },
+        { "id": "productionType", "label": "Circle one", "type": "passfail", "options": ["Regular production", "Rework"], "required": true },
+        { "id": "reworkReason", "label": "Rework reason", "type": "text" }
+      ]
+    },
+    {
+      "title": "First article inspection",
+      "fields": [
+        { "id": "inspectionApproval", "label": "Inspection approval (initials)", "type": "text", "required": true, "hint": "The first article MUST be inspected for adherence to product specifications. First article inspections and approval MUST occur at the start of each new product." },
+        { "id": "inspectionTime", "label": "Time", "type": "time", "required": true },
+        { "id": "labelReview", "label": "Label review", "type": "checkbox", "checkLabel": "I verify the label used is correct in accordance with the Allergen Control Program (SOP 032)" },
+        { "id": "trayTare", "label": "Tray tare weight (average of 5 trays, lids, and labels)", "type": "number", "unit": "oz" },
+        { "id": "scaleWeight", "label": "Scale verification: calibrated weight", "type": "number", "unit": "g" },
+        { "id": "scaleSerial", "label": "Scale serial #", "type": "text" }
+      ]
+    },
+    {
+      "title": "Hourly checks",
+      "fields": [
+        {
+          "id": "checks",
+          "label": "Checks",
+          "type": "table",
+          "rows": 3,
+          "hint": "One entry at the start, every hour (±15 min), and at the end of production. Seal check: check 3 consecutive trays for single meals and 2 consecutive trays for family meals.",
+          "columns": [
+            { "id": "time", "label": "1. Time", "type": "time" },
+            { "id": "xray", "label": "2. X-Ray monitoring", "type": "passfail", "options": ["Pass", "Fail"] },
+            { "id": "recipe", "label": "3. X-Ray recipe", "type": "passfail", "options": ["Pass", "Fail"] },
+            { "id": "initial", "label": "Initial", "type": "text" },
+            { "id": "weight1", "label": "4. Weight check 1", "type": "number", "unit": "oz" },
+            { "id": "weight2", "label": "4. Weight check 2", "type": "number", "unit": "oz" },
+            { "id": "weight3", "label": "4. Weight check 3", "type": "number", "unit": "oz" },
+            { "id": "unitsPerCase", "label": "5. Units per case", "type": "number" },
+            { "id": "noSealBubble", "label": "6. No seal bubble", "type": "checkbox", "checkLabel": "Yes" },
+            { "id": "sealResult", "label": "7. Seal check result", "type": "passfail", "options": ["Pass", "Fail"] },
+            { "id": "o2", "label": "8. % O2", "type": "number" },
+            { "id": "co2", "label": "9. % CO2", "type": "number" },
+            { "id": "unitLabelItem", "label": "10. Label item #", "type": "text" },
+            { "id": "productTemp", "label": "11. Pallet temp °F", "type": "number" },
+            { "id": "rejectContainer", "label": "Check reject container", "type": "passfail", "options": ["Y", "N"] },
+            { "id": "comments", "label": "Comments / CA", "type": "text", "span": 2 }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Weekly direct observation",
+      "fields": [
+        { "id": "observationInitials", "label": "Initials", "type": "text" },
+        { "id": "observationTime", "label": "Time", "type": "time" }
+      ]
+    },
+    {
+      "title": "Pre-shipment check",
+      "fields": [
+        { "id": "preShipInitials", "label": "Initials", "type": "text", "hint": "Verify production documents and released product before shipping." },
+        { "id": "preShipDate", "label": "Date", "type": "date" },
+        { "id": "preShipTime", "label": "Time", "type": "time" }
+      ]
+    }
+  ]
+}
