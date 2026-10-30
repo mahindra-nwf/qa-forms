@@ -16,7 +16,7 @@ There are three ways to run it:
 
 ## Online version: one-time setup
 
-1. **Supabase.** Create a project at supabase.com. Open **SQL Editor**, paste all of `supabase/migrations/001_qa_forms.sql`, and press **Run**.
+1. **Supabase.** Create a project at supabase.com. Open **SQL Editor**, then paste and **Run** each file in `supabase/migrations/` in order.
 2. **Vercel.** At vercel.com, choose **Add New > Project** and import the `qa-forms` GitHub repo. Leave the framework as "Other".
 3. In the Vercel project, open **Settings > Environment Variables** and add:
    - `SUPABASE_URL`: from Supabase **Project Settings > Data API** (looks like `https://xxxx.supabase.co`)
@@ -26,7 +26,13 @@ There are three ways to run it:
 
 Never put the secret key anywhere except Vercel's environment variables.
 
-Submitted records can't be edited or deleted, because the database blocks it. Staff names can be added and removed.
+**Test mode is on.** While testing, records can be edited and deleted (a banner says so). Before real use, run this in Supabase **SQL Editor** to lock records permanently:
+
+```sql
+update app_settings set allow_record_changes = false;
+```
+
+Once locked, the database refuses every edit and delete. Staff names can always be added and removed.
 
 ## Plant network version
 

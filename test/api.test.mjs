@@ -70,6 +70,28 @@ test('database errors are not leaked to the page', async () => {
   assert.doesNotMatch(JSON.stringify(await r.json()), /secret internals/);
 });
 
+test('editing updates only the entry fields and stamps edited_at', async () => {
+  reply = () => new Response(JSON.stringify([{ id: 'x' }]), { status: 200 });
+  const r = await subs.PATCH(req('PATCH', '/api/submissions?id=x', { staffName: 'Bo', values: { a: 1 }, notes: '', formId: 'other' }));
+  assert.equal(r.status, 200);
+  assert.equal(calls[0].method, 'PATCH');
+  assert.match(calls[0].url, /submissions\?id=eq\.x&/);
+  assert.deepEqual(Object.keys(calls[0].body).sort(), ['edited_at', 'notes', 'staff_name', 'values']);
+});
+
+test('locked records give a clear 403', async () => {
+  reply = () => new Response(JSON.stringify({ code: 'P0001' }), { status: 400 });
+  for (const r of [await subs.DELETE(req('DELETE', '/api/submissions?id=x')), await subs.PATCH(req('PATCH', '/api/submissions?id=x', { staffName: 'A' }))]) {
+    assert.equal(r.status, 403);
+    assert.match((await r.json()).error, /locked/);
+  }
+});
+
+test('deleting a missing record is a 404', async () => {
+  const r = await subs.DELETE(req('DELETE', '/api/submissions?id=nope'));
+  assert.equal(r.status, 404);
+});
+
 test('staff delete escapes the id', async () => {
   await staff.DELETE(req('DELETE', '/api/staff?id=a%26b'));
   assert.match(calls[0].url, /staff\?id=eq\.a%26b$/);

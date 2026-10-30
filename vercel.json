@@ -5,7 +5,8 @@
     "api/*.mjs": { "includeFiles": "forms/**" }
   },
   "rewrites": [
-    { "source": "/api/staff/:id", "destination": "/api/staff?id=:id" }
+    { "source": "/api/staff/:id", "destination": "/api/staff?id=:id" },
+    { "source": "/api/submissions/:id", "destination": "/api/submissions?id=:id" }
   ],
   "headers": [
     {

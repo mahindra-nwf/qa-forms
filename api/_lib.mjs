@@ -51,6 +51,7 @@ export async function db(method, pathAndQuery, body) {
   if (!r.ok) {
     console.error('Supabase error', r.status, data);
     if (data?.code === '23505') throw new HttpError(409, 'Already exists.');
+    if (data?.code === 'P0001') throw new HttpError(403, 'Records are locked and cannot be changed or deleted.');
     throw new HttpError(502, 'Could not save to the database. Try again.');
   }
   return data;

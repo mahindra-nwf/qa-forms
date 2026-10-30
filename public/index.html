@@ -244,6 +244,7 @@ dl.vals dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
     <button class="btn theme" id="themeBtn" type="button"></button>
   </div>
 </header>
+<div class="demo" id="testBar" hidden><div class="top-in">Test mode: records can be edited and deleted. Turn this off before real use.</div></div>
 <div class="demo" id="demoBar" hidden><div class="top-in">Demo site. Entries are saved only in this browser and are not official QA records.</div></div>
 <main id="app">
   <div class="notice"><h2>Loading forms…</h2><p class="muted">Connecting to the shared QA records.</p></div>
@@ -266,7 +267,7 @@ function toast(msg) {
 }
 
 function go(view) {
-  S.view = view; S.fill = null; S.detail = null;
+  S.view = view; S.fill = null; S.detail = null; S.editing = null;
   if (location.hash.slice(1) !== view) history.replaceState(null, '', '#' + view);
   render(); window.scrollTo(0, 0);
   load();
@@ -307,6 +308,8 @@ async function load() {
   try {
     [S.forms, S.staff, S.subs] = await Promise.all(['forms', 'staff', 'submissions'].map(k => apiCall('GET', '/api/' + k)));
     S.offline = false; S.locked = false; S.ready = true;
+    S.testMode = !!(await apiCall('GET', '/api/mode').catch(() => ({}))).allowChanges;
+    document.getElementById('testBar').hidden = !S.testMode;
   } catch { if (!S.locked) S.offline = true; }
   if (!S.fill) render();
 }
@@ -595,6 +598,16 @@ function restore(form, f, { staffName, values, notes }) {
     if (el.type === 'checkbox') el.checked = !!v; else el.value = v ?? ''; };
   put('_staff', staffName); put('_notes', notes);
   for (const fld of allFields(f)) {
+    if (fld.type === 'matrix') {
+      const v = values[fld.id] || {};
+      fld.items.forEach(it => {
+        const row = v.items?.[it.id] || {};
+        areasOf(fld, it).forEach(a => { const h = form.elements[`${fld.id}__${it.id}__${a}`]; if (h) setMark(h.previousElementSibling, row[a] || ''); });
+        put(`${fld.id}__${it.id}__note`, row.note); put(`${fld.id}__${it.id}__reading`, row.reading);
+      });
+      fld.columns.forEach(c => put(`${fld.id}__init__${c.id}`, v.initials?.[c.id]));
+      continue;
+    }
     if (fld.type !== 'table') { put(fld.id, values[fld.id]); continue; }
     const tb = form.querySelector(`[data-table="${CSS.escape(fld.id)}"]`);
     (values[fld.id] || []).forEach((row, i) => {
@@ -622,11 +635,13 @@ async function submitFill(e) {
   const f = S.fill, { staffName, values, notes } = collect(form, f);
   const btn = document.getElementById('submitBtn'); btn.disabled = true; err.textContent = '';
   try {
-    await apiCall('POST', '/api/submissions', { formId: f.id, staffName, values, notes });
+    const editing = S.editing;
+    if (editing) await apiCall('PATCH', '/api/submissions/' + encodeURIComponent(editing.id), { staffName, values, notes });
+    else await apiCall('POST', '/api/submissions', { formId: f.id, staffName, values, notes });
     ls.set('qa-staff', staffName);
     clearInterval(S.clock);
-    toast(`${f.name} submitted`);
-    go('forms');
+    toast(editing ? 'Changes saved' : `${f.name} submitted`);
+    if (editing) { await load(); go('history'); S.detail = editing.id; render(); } else go('forms');
   } catch (x) {
     btn.disabled = false;
     err.textContent = x.message === 'Failed to fetch' ? 'Could not reach the QA server. Check the connection and press Submit again.' : x.message;
@@ -701,12 +716,25 @@ function renderDetail() {
   <article class="sheet">
     <div class="sheet-head"><div class="eyebrow">${[s.formCode, s.category].filter(Boolean).map(esc).join(' · ') || 'Submitted record'}</div>
       <h1>${esc(s.formName)}</h1>
-      <p style="margin:0">Filled by <strong>${esc(s.staffName)}</strong> · <span class="mono">${esc(fmtWhen(s.submittedAt))}</span></p></div>
+      <p style="margin:0">Filled by <strong>${esc(s.staffName)}</strong> · <span class="mono">${esc(fmtWhen(s.submittedAt))}</span>${s.editedAt ? ` · <span class="muted">Edited ${esc(fmtWhen(s.editedAt))}</span>` : ''}</p>
+      ${S.testMode && def ? `<div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="editSub">Edit</button><button class="btn" id="delSub">Delete</button></div>` : ''}</div>
     <div class="sheet-body">${body}
       ${s.notes ? `<fieldset><legend>Notes</legend><p style="margin:0;white-space:pre-wrap">${esc(s.notes)}</p></fieldset>` : ''}
     </div>
   </article>`;
   document.getElementById('back').onclick = () => { S.detail = null; render(); };
+  const edit = document.getElementById('editSub'), del = document.getElementById('delSub');
+  if (edit) edit.onclick = () => {
+    S.detail = null; S.editing = s; openFill(s.formId);
+    restore(document.getElementById('sheet'), def, s);
+    document.getElementById('submitBtn').textContent = 'Save changes';
+    document.getElementById('back').onclick = () => { S.editing = null; S.fill = null; clearInterval(S.clock); S.detail = s.id; render(); };
+  };
+  if (del) del.onclick = async () => {
+    if (!confirm(`Delete this ${s.formName} record? This cannot be undone.`)) return;
+    try { await apiCall('DELETE', '/api/submissions/' + encodeURIComponent(s.id)); toast('Record deleted'); S.detail = null; await load(); }
+    catch (x) { toast(x.message); }
+  };
 }
 
 /* ---------- Staff ---------- */
