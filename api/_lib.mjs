@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-const FORMS = path.join(process.cwd(), 'forms');
+// FORMS_DIR lets the tests use the sample forms.
+const FORMS = path.join(process.cwd(), process.env.FORMS_DIR || 'forms');
 
 export const json = (status, body) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 

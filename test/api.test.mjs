@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 
 process.env.SUPABASE_URL = 'https://example.supabase.co';
 process.env.SUPABASE_SECRET_KEY = 'sb_secret_test';
+process.env.FORMS_DIR = 'forms/samples';
 
 const forms = await import('../api/forms.mjs');
 const staff = await import('../api/staff.mjs');
@@ -49,7 +50,7 @@ test('no site password: records still need someone signed in', async () => {
   assert.equal((await r.json()).code, 'signin');
 });
 
-test('lists the forms from forms/', async () => {
+test('lists the forms from the forms folder', async () => {
   const list = await (await forms.GET(req('GET', '/api/forms'))).json();
   assert.ok(list.some(f => f.id === 'receiving-log-001-cards'));
 });
